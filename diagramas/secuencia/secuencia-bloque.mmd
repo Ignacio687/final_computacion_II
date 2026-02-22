@@ -1,0 +1,18 @@
+sequenceDiagram
+  participant N1 as Nodo 1
+  participant Pool as ProcessPool
+  participant N2 as Nodo 2
+  participant N3 as Nodo 3
+  N1->>N1: Armar bloque candidato
+  N1->>Pool: run_in_executor(minar)
+  Pool->>Pool: PoW (nonce)
+  Pool-->>N1: nonce, hash
+  N1->>N1: Añadir a cadena, persistir
+  N1->>N2: NEW_BLOCK (TCP)
+  N1->>N3: NEW_BLOCK (TCP)
+  N2->>N2: Validar bloque
+  N2->>N2: Cadena más larga? Reemplazar/añadir
+  N3->>N3: Validar bloque
+  N3->>N3: Cadena más larga? Reemplazar/añadir
+  N2->>N2: Reenviar NEW_BLOCK
+  N3->>N3: Reenviar NEW_BLOCK

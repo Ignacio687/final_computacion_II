@@ -1,0 +1,15 @@
+flowchart TD
+  A[Mempool alcanza N tx o timeout] --> B[Armar bloque candidato]
+  B --> C[Añadir recompensa minado]
+  C --> D[ProcessPoolExecutor: PoW]
+  D --> E[Encontrar nonce]
+  E --> F[Enviar NEW_BLOCK por TCP a peers]
+  F --> G[Peer recibe bloque]
+  G --> H{Bloque válido?}
+  H -->|No| I[Descartar]
+  H -->|Sí| J{Cadena más larga?}
+  J -->|Sí| K[Reemplazar cadena local]
+  J -->|No| L[Añadir a cadena]
+  K --> M[Actualizar mempool, persistir]
+  L --> M
+  M --> N[Reenviar a otros peers]

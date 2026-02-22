@@ -1,0 +1,14 @@
+sequenceDiagram
+  participant B as Billetera
+  participant N1 as Nodo 1
+  participant N2 as Nodo 2
+  participant N3 as Nodo 3
+  B->>N1: POST /tx (transacción firmada)
+  N1->>N1: Validar firma y reglas
+  N1->>N1: Añadir a mempool, persistir
+  N1->>N2: NEW_TX (TCP)
+  N1->>N3: NEW_TX (TCP)
+  N2->>N2: Validar, mempool, persistir
+  N3->>N3: Validar, mempool, persistir
+  N2->>N2: Reenviar a sus peers
+  N3->>N3: Reenviar a sus peers

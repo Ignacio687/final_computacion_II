@@ -1,0 +1,49 @@
+classDiagram
+  class Nodo {
+    -blockchain: list
+    -mempool: list
+    -peers: list
+    +iniciar()
+    +atender_tcp()
+    +atender_http()
+    +minar()
+    +propagar_tx()
+    +propagar_bloque()
+    +validar_cadena()
+  }
+  class Billetera {
+    -nodo_url: str
+    +consultar_balance()
+    +consultar_transacciones()
+    +enviar_tx()
+    +generar_tx_prueba()
+  }
+  class Block {
+    +id: str
+    +last_hash: str
+    +hash: str
+    +timestamp: datetime
+    +target: int
+    +nonce: int
+    +transactions: list
+  }
+  class Transaction {
+    +id: str
+    +sender_id: str
+    +receiver_id: str
+    +amount: int
+    +signature: bytes
+    +public_key: bytes
+  }
+  class Usuario {
+    +id: str
+    +public_key: bytes
+    +private_key: bytes
+    +firmar_tx()
+  }
+  Nodo "1" --> "*" Block : contiene
+  Nodo --> "*" Transaction : mempool
+  Block --> "*" Transaction : incluye
+  Billetera --> Nodo : HTTP
+  Billetera --> Usuario : gestiona
+  Usuario --> Transaction : firma

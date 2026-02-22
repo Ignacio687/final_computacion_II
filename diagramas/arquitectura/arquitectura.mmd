@@ -1,0 +1,19 @@
+flowchart TB
+  subgraph red["Red local"]
+    N1[Nodo 1]
+    N2[Nodo 2]
+    N3[Nodo 3]
+    N4[Nodo 4]
+    N5[Nodo 5]
+    N1 <-->|TCP JSON cifrado/firmado| N2
+    N1 <--> N3
+    N2 <--> N4
+    N3 <--> N4
+    N3 <--> N5
+    N4 <--> N5
+  end
+  subgraph cliente["Cliente"]
+    B[Billetera]
+  end
+  B <-->|HTTP REST| N1
+  B <-->|HTTP REST| N3

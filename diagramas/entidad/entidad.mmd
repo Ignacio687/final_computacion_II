@@ -1,0 +1,41 @@
+erDiagram
+  BLOCK {
+    char id PK
+    char last_hash
+    char hash
+    datetime timestamp
+    int target
+    int nonce
+    int transac_count
+  }
+  TRANSACTION {
+    char id PK
+    char block_id FK
+    char last_hash
+    char hash
+    char sender_id
+    char receiver_id
+    bytes signature
+    bytes public_key
+  }
+  NODE {
+    char id PK
+    char ipv4
+    char ipv6
+    varchar domain_name
+    bool status
+  }
+  ACCOUNT {
+    char id PK
+    bytes public_key
+  }
+  ACCOUNT_BILLETERA {
+    char id PK
+    varchar user_nickname
+    bytes public_key
+    bytes private_key
+    bigint balance
+  }
+  BLOCK ||--o{ TRANSACTION : contiene
+  TRANSACTION }o--|| ACCOUNT : sender
+  TRANSACTION }o--|| ACCOUNT : receiver

@@ -24,6 +24,7 @@ Este proyecto es una aplicación que pone en práctica los contenidos de la mate
 |-----------|-----------|
 | [**doc/**](doc/) | Definición del proyecto: descripción verbal, arquitectura y funcionalidades por entidad (acordado con la cátedra). |
 | [**final/**](final/) | Detalles conceptuales e ideas de implementación (diagramas, etc.). |
+| [**diagramas/**](diagramas/) | Diagramas Mermaid: arquitectura, clase, entidad, flujo y secuencia. |
 | [**INSTALL.md**](INSTALL.md) | Cómo clonar, instalar y ejecutar (o desplegar) la aplicación. |
 | [**INFO.md**](INFO.md) | Decisiones de diseño y justificación (modelo de datos, concurrencia, almacenamiento, etc.). |
 | [**TODO.md**](TODO.md) | Mejoras y características previstas para futuras versiones. |
