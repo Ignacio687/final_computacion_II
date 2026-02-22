@@ -1,0 +1,9 @@
+# Funcionalidades por entidad
+
+<!-- Listar qué hace el cliente, qué hace el servidor, qué hace cada componente/elemento. -->
+
+(Por completar: lista de funcionalidades acordada.)
+
+- **Cliente:** …
+- **Servidor:** …
+- **Otros componentes:** …
