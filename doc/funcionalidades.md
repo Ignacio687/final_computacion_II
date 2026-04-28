@@ -7,9 +7,8 @@ Listado de responsabilidades y acciones de cada componente. Los diagramas de cla
 ## Nodo
 
 - **Iniciar y configurar**
-  - Leer argumentos con **argparse** (puerto TCP, puerto HTTP, lista de peers, ruta SQLite, dificultad, workers del pool, etc.).
-  - Cargar bloque génesis (mismo para todos; semilla desde generador).
-  - Cargar blockchain y mempool desde SQLite si existe; si no, iniciar con el génesis.
+  - Leer argumentos con **argparse** (puerto TCP, puerto HTTP, lista de peers, ruta SQLite, dificultad, workers del pool, semilla del bloque génesis, etc.).
+  - Cargar blockchain y mempool desde SQLite si existe. Si la cadena está vacía, construir el **bloque génesis** a partir de la semilla recibida por argumento (idéntica en todos los nodos) y persistirlo como primer bloque.
   - Iniciar event loop asyncio, servidor TCP (protocolo entre nodos) y servidor HTTP (billetera/CLI).
 
 - **Atender conexiones TCP (peers)**
@@ -70,9 +69,11 @@ Listado de responsabilidades y acciones de cada componente. Los diagramas de cla
 
 ## Generador de bloque génesis
 
-- **Responsabilidad**: Producir una **semilla aleatoria** (cadena o estructura) y, a partir de ella, el **bloque génesis** común para toda la red.
-- **Uso**: Al iniciar el primer nodo (o en un script de inicialización), se ejecuta el generador; el bloque resultante se guarda y se comparte (archivo, o mismo binario/script en todos los nodos) para que todos arranquen con la misma cadena base.
-- Puede ser un módulo o script aparte, invocado una vez o integrado en el arranque del nodo cuando no existe aún la BD.
+- **Responsabilidad**: A partir de una **semilla** (cadena), construir el **bloque génesis** de forma **determinista** (mismas entradas → mismo bloque, bit a bit).
+- **Quién comparte la semilla**: el operador de la red. La semilla es un parámetro de despliegue que se pasa idéntico a todos los nodos vía línea de comandos (`--genesis-seed SEED`) o variable de entorno común en `docker-compose.yml`. **No** se genera al arrancar cada nodo (si cada uno generara la suya, todos tendrían un génesis distinto y la regla de la cadena más larga no funcionaría).
+- **Cuándo se ejecuta**: cada nodo, al arrancar con la BD vacía, llama al generador con la semilla recibida; obtiene el bloque génesis y lo persiste como primer bloque. Como el algoritmo es determinista, todos los nodos terminan con el mismo bloque génesis sin necesidad de coordinación adicional.
+- **Después del primer arranque**: la semilla ya no se usa en runtime; la cadena local persiste en SQLite y crece con bloques minados.
+- **Implementación**: módulo dentro del nodo (`infrastructure/genesis/`), no un script aparte.
 
 ---
 
@@ -91,5 +92,5 @@ Listado de responsabilidades y acciones de cada componente. Los diagramas de cla
 | **Nodo**          | Mantener blockchain y mempool; validar y propagar tx/bloques; minar con ProcessPoolExecutor; verificación de cadena con queue.Queue y worker threads; exponer TCP (nodos) y HTTP (billetera); persistir en SQLite; argparse. |
 | **Billetera**     | Cliente HTTP; consola para consultas y envío de tx; modo generador de tx de prueba (usuarios y tx aleatorios). |
 | **Usuario**       | Entidad lógica (PKI); firmar transacciones; en pruebas, instanciado por el generador. |
-| **Gen. génesis**  | Generar semilla y bloque génesis común para todos los nodos. |
+| **Gen. génesis**  | A partir de la semilla compartida (parámetro de despliegue), construir el bloque génesis de forma determinista en cada nodo. |
 | **Gen. tx prueba**| Generar usuarios y transacciones aleatorias; enviar al nodo por HTTP (billetera en modo generador o script). |

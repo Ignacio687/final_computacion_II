@@ -45,7 +45,7 @@ No hay “un” servidor central: la red es descentralizada; cada nodo es par de
 
 ## Bloque génesis y datos de prueba
 
-- **Bloque génesis**: Un generador produce una **semilla aleatoria** (cadena o estructura) que se usa para crear el primer bloque común. Todos los nodos arrancan con el mismo bloque génesis para compartir la misma base de cadena.
+- **Bloque génesis**: Una **semilla** compartida (parámetro de despliegue idéntico en todos los nodos, pasado por línea de comandos o variable de entorno) define el bloque génesis. Cada nodo, al arrancar con la BD vacía, construye su bloque génesis a partir de esa semilla; el algoritmo es determinista, por lo que todos los nodos obtienen el mismo bloque génesis sin coordinación adicional.
 - **Usuarios y transacciones de prueba**: Para correr y probar el sistema no hay usuarios reales. Un **generador** (integrado en la billetera o como herramienta aparte) crea de forma aleatoria usuarios (pares de claves) y transacciones entre ellos, y las envía a los nodos vía HTTP. Así la billetera “alimenta” la red y los nodos procesan y minan bloques.
 
 ---
