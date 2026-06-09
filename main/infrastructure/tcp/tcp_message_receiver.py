@@ -113,7 +113,7 @@ class TCPMessageReceiver(IMessageReceiver):
             pass
         finally:
             if peer_node_id is not None:
-                self._message_sender.unregister_incoming(peer_node_id)
+                self._message_sender.unregister_incoming(peer_node_id, writer)
             try:
                 writer.close()
                 await writer.wait_closed()

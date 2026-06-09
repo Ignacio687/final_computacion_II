@@ -78,8 +78,12 @@ class TCPMessageSender(IMessageSender):
         )
         self._incoming[node_id] = conn
 
-    def unregister_incoming(self, node_id: str) -> None:
-        self._incoming.pop(node_id, None)
+    def unregister_incoming(
+        self, node_id: str, writer: asyncio.StreamWriter
+    ) -> None:
+        conn = self._incoming.get(node_id)
+        if conn is not None and conn.writer is writer:
+            self._incoming.pop(node_id, None)
 
     async def start(self) -> None:
         self._running = True
