@@ -7,6 +7,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 from main.infrastructure.genesis.seed_genesis_provider import SeedGenesisProvider
+from main.wallet.key_store import KeyStore
 from main.infrastructure.serialization.canonical import (
     derive_sender_id,
     transaction_firmable_bytes,
@@ -38,6 +39,16 @@ def test_different_seeds_produce_different_hashes():
     provider_a = SeedGenesisProvider("seed-a", PREFUND_ACCOUNTS, PREFUND_AMOUNT)
     provider_b = SeedGenesisProvider("seed-b", PREFUND_ACCOUNTS, PREFUND_AMOUNT)
     assert provider_a.get_genesis_block().hash != provider_b.get_genesis_block().hash
+
+
+def test_derive_genesis_accounts_match_provider_prefunds():
+    accounts = KeyStore.derive_genesis_accounts(GENESIS_SEED, PREFUND_ACCOUNTS)
+    genesis = SeedGenesisProvider(GENESIS_SEED, PREFUND_ACCOUNTS, PREFUND_AMOUNT).get_genesis_block()
+    assert len(accounts) == PREFUND_ACCOUNTS
+    for account, tx in zip(accounts, genesis.transactions):
+        assert account.id == tx.receiver_id
+        assert tx.sender_id == "GENESIS"
+        assert tx.amount == PREFUND_AMOUNT
 
 
 def test_prefund_addresses_match_derivation_and_can_sign():

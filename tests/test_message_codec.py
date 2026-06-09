@@ -91,6 +91,31 @@ def test_encode_decode_round_trip_per_type(codec: MessageCodec, message_index: i
     assert decoded.payload == message.payload
 
 
+def test_message_codec_rejects_tampered_cipher(codec: MessageCodec, signer):
+    message = Message(
+        type=MessageType.GET_CHAIN,
+        payload=GetChainPayload(since_height=0),
+    )
+    raw = bytearray(codec.encode(message, sender_node_id="node-local"))
+    envelope = json.loads(bytes(raw).decode("utf-8"))
+    cipher = bytearray(envelope["payload_cipher"].encode("ascii"))
+    cipher[20] ^= 0x01
+    envelope["payload_cipher"] = bytes(cipher).decode("ascii")
+    tampered = json.dumps(envelope).encode("utf-8")
+    with pytest.raises(Exception):
+        codec.decode(tampered, peer_public_key=signer.get_public_key())
+
+
+def test_message_codec_requires_peer_key_for_non_hello(codec: MessageCodec):
+    message = Message(
+        type=MessageType.NEW_TX,
+        payload=NewTxPayload(transaction=_sample_transaction()),
+    )
+    raw = codec.encode(message, sender_node_id="node-local")
+    with pytest.raises(ValueError, match="clave pública del peer"):
+        codec.decode(raw, peer_public_key=None)
+
+
 def test_decode_rejects_altered_signature(codec: MessageCodec, signer):
     message = Message(
         type=MessageType.GET_CHAIN,

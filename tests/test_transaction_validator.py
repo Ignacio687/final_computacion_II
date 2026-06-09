@@ -113,6 +113,27 @@ def test_non_positive_amount_rejected():
     assert validator.validate(tx) is False
 
 
+def test_negative_amount_rejected():
+    private_key = Ed25519PrivateKey.generate()
+    public_key_der = _public_key_der(private_key)
+    sender_id = derive_sender_id(public_key_der)
+    repo = InMemoryTransactionRepository({sender_id: 1000})
+    validator = DefaultTransactionValidator(CryptographyVerifier(), repo)
+    tx = _signed_tx(private_key, "b" * 64, -1)
+    assert validator.validate(tx) is False
+
+
+def test_transaction_validator_rejects_duplicate_id():
+    private_key = Ed25519PrivateKey.generate()
+    public_key_der = _public_key_der(private_key)
+    sender_id = derive_sender_id(public_key_der)
+    repo = InMemoryTransactionRepository({sender_id: 1000})
+    tx = _signed_tx(private_key, "b" * 64, 100)
+    repo.mark_known(tx.id)
+    validator = DefaultTransactionValidator(CryptographyVerifier(), repo)
+    assert validator.validate(tx) is False
+
+
 def test_insufficient_balance_rejected():
     private_key = Ed25519PrivateKey.generate()
     public_key_der = _public_key_der(private_key)

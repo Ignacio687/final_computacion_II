@@ -171,6 +171,19 @@ def test_wrong_target_rejected():
     assert block_validator.validate_with_balances(mined, genesis.hash, balances) is False
 
 
+def test_block_without_coinbase_rejected():
+    _, block_validator, _, pow_service = _validators()
+    genesis = _genesis_provider().get_genesis_block()
+    user_tx, _ = _signed_tx_from_genesis(genesis, "r" * 64, 50)
+    mined = _mine_block(
+        pow_service, 1, genesis.hash, genesis.timestamp, [user_tx]
+    )
+    balances: dict[str, int] = {}
+    for tx in genesis.transactions:
+        balances[tx.receiver_id] = balances.get(tx.receiver_id, 0) + tx.amount
+    assert block_validator.validate_with_balances(mined, genesis.hash, balances) is False
+
+
 def test_coinbase_amount_must_match_mining_reward():
     _, block_validator, _, pow_service = _validators()
     genesis = _genesis_provider().get_genesis_block()

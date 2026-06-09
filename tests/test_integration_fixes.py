@@ -102,7 +102,8 @@ def test_mined_block_validation_accepts_tx_in_local_mempool():
     ) is True
 
 
-def test_unregister_incoming_skips_stale_writer():
+@pytest.mark.asyncio
+async def test_unregister_incoming_skips_stale_writer():
     sender = TCPMessageSender(
         peers=[],
         signer=MagicMock(),
@@ -116,11 +117,17 @@ def test_unregister_incoming_skips_stale_writer():
     reader = MagicMock()
     public_key = b"key"
 
-    sender.register_incoming("peer-1", "127.0.0.1", 9001, reader, writer_old, public_key)
-    sender.register_incoming("peer-1", "127.0.0.1", 9001, reader, writer_new, public_key)
+    await sender.register_incoming(
+        "peer-1", "127.0.0.1", 9001, reader, writer_old, public_key
+    )
+    await sender.register_incoming(
+        "peer-1", "127.0.0.1", 9001, reader, writer_new, public_key
+    )
     sender.unregister_incoming("peer-1", writer_old)
 
-    assert sender._incoming["peer-1"].writer is writer_new
+    conn = sender._incoming.get("peer-1")
+    assert conn is not None
+    assert conn.writer is writer_new
 
 
 @pytest.mark.asyncio
