@@ -116,6 +116,7 @@ async def test_mining_and_block_propagation_between_two_nodes(
             GENESIS_SEED, GENESIS_PREFUND_ACCOUNTS
         )
         sender, receiver = accounts[0], accounts[1]
+        initial_miner_balance = await async_http_get_balance(http_a, mining_a)
         tx = build_signed_transaction(sender, receiver.id, amount=10)
 
         status, body = await async_http_post_tx(http_a, tx)
@@ -142,7 +143,7 @@ async def test_mining_and_block_propagation_between_two_nodes(
             assert await async_http_get_balance(http_port, receiver.id) == expected_receiver
             assert await async_http_get_balance(http_port, sender.id) == expected_sender
             miner_balance = await async_http_get_balance(http_port, mining_a)
-            assert miner_balance >= MINING_REWARD
+            assert miner_balance == initial_miner_balance + MINING_REWARD
         assert await async_http_get_balance(http_a, mining_a) == await async_http_get_balance(
             http_b, mining_a
         )
