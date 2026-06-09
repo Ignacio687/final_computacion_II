@@ -11,8 +11,12 @@ Flujo:
    enviarla por POST /tx.
 """
 
+import random
+import time
+
 from main.wallet.wallet_client import WalletClient
 from main.wallet.key_store import KeyStore
+from main.wallet.tx_builder import build_signed_transaction
 
 
 class TransactionGenerator:
@@ -34,4 +38,56 @@ class TransactionGenerator:
 
     def run(self) -> int:
         """Bucle de generación hasta interrupción. Devuelve el código de salida."""
-        raise NotImplementedError
+        if not self._genesis_seed:
+            print("El modo generador requiere --genesis-seed (o HASHCOIN_GENESIS_SEED)")
+            return 1
+
+        account_count = self._users if self._users > 0 else 5
+        genesis_accounts = KeyStore.derive_genesis_accounts(
+            self._genesis_seed, account_count
+        )
+        extra_accounts = []
+
+        print(
+            f"Generador iniciado: {len(genesis_accounts)} cuentas génesis, "
+            f"intervalo={self._interval_seconds}s"
+        )
+
+        try:
+            while True:
+                self._send_one_transaction(genesis_accounts, extra_accounts)
+                time.sleep(self._interval_seconds)
+        except KeyboardInterrupt:
+            print()
+            return 0
+
+    def _send_one_transaction(self, genesis_accounts, extra_accounts) -> None:
+        all_accounts = genesis_accounts + extra_accounts
+        senders: list[tuple[object, int]] = []
+        for account in all_accounts:
+            balance = self._client.get_balance(account.id)
+            if balance > 0:
+                senders.append((account, balance))
+
+        if not senders:
+            print("Sin emisores con saldo; esperando...")
+            return
+
+        sender, balance = random.choice(senders)
+
+        if len(all_accounts) < 2 or random.random() < 0.3:
+            receiver = self._key_store.create_account()
+            extra_accounts.append(receiver)
+        else:
+            candidates = [acc for acc in all_accounts if acc.id != sender.id]
+            receiver = random.choice(candidates)
+
+        amount = random.randint(1, balance)
+        tx = build_signed_transaction(sender, receiver.id, amount)
+        if self._client.submit_transaction(tx):
+            print(
+                f"tx enviada: {tx.id[:12]}... "
+                f"{sender.id[:12]}... -> {receiver.id[:12]}... amount={amount}"
+            )
+        else:
+            print("El nodo rechazó la transacción generada")
