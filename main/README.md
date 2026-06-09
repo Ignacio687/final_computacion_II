@@ -8,7 +8,7 @@ Arquitectura modular orientada a objetos con principios SOLID. Todo está **decl
 
 | Carpeta | Qué contiene | De qué depende |
 |---------|--------------|----------------|
-| `domain/models/` | **Modelos del dominio**: entidades y objetos de valor del problema (Block, Transaction, Account, WalletAccount, NodeInfo, Message, payloads). Son *dataclasses*. Sin lógica ni dependencias externas. | Nada |
+| `domain/models/` | **Modelos del dominio**: entidades y objetos de valor del problema (Block, Transaction, WalletAccount, NodeInfo, Message, payloads). Son *dataclasses*. Sin lógica ni dependencias externas. | Nada |
 | `application/interfaces/` | **Contratos** (clases abstractas, ABC) que definen lo que necesita el negocio: persistencia, validación, mensajería, PoW, criptografía, génesis, consultas para billetera. | `domain/` |
 | `infrastructure/` | **Adaptadores**: implementaciones concretas de las interfaces (TCP, HTTP, SQLite, cryptography, SHA-256 PoW, génesis por semilla). | `application/interfaces/`, `domain/` |
 | `service/` | **Lógica de negocio** y orquestación: PropagationService, MiningService, TransactionSubmitService, WalletQueryService, NodeService. Dependen solo de interfaces. | `application/interfaces/`, `domain/` |

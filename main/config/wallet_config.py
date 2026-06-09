@@ -12,3 +12,4 @@ class WalletConfig:
     generator_mode: bool                   # si True, generar transacciones de prueba
     generator_users: int                   # cantidad de usuarios aleatorios a crear en modo generador
     generator_interval_seconds: float      # intervalo entre transacciones generadas
+    genesis_seed: str                      # semilla del génesis (deriva las cuentas pre-fondeadas a gastar)

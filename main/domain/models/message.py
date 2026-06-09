@@ -11,14 +11,13 @@ from main.domain.models.payloads import MessagePayload
 class MessageType(str, Enum):
     """Tipos de mensaje del protocolo. El tipo determina la clase concreta del payload (ver payloads.py)."""
 
+    HELLO = "HELLO"  # handshake de identificación de nodos (ver doc/protocolo.md §6.5)
     NEW_TX = "NEW_TX"
     NEW_BLOCK = "NEW_BLOCK"
     GET_CHAIN = "GET_CHAIN"
     CHAIN_RESPONSE = "CHAIN_RESPONSE"
     GET_MEMPOOL = "GET_MEMPOOL"
     MEMPOOL_RESPONSE = "MEMPOOL_RESPONSE"
-    PING = "PING"
-    PONG = "PONG"
 
 
 @dataclass(frozen=False)

@@ -4,8 +4,8 @@ from main.application.interfaces.blockchain_repository import IBlockchainReposit
 from main.application.interfaces.transaction_repository import ITransactionRepository
 from main.application.interfaces.transaction_validator import ITransactionValidator
 from main.application.interfaces.block_validator import IBlockValidator
-from main.application.interfaces.chain_verifier import IChainVerifier
 from main.application.interfaces.message_sender import IMessageSender
+from main.infrastructure.validation.chain_verification_dispatcher import ChainVerificationDispatcher
 from main.domain.models.message import Message
 from main.domain.models.node_info import NodeInfo
 
@@ -23,13 +23,16 @@ class PropagationService:
       en la cadena local pero la altura recibida es mayor, enviar GET_CHAIN al origen.
     - GET_CHAIN: responder al origen con CHAIN_RESPONSE conteniendo los bloques desde
       `since_height` (inclusive).
-    - CHAIN_RESPONSE: si la cadena recibida es más larga que la local, encolar tarea de
-      verificación (IChainVerifier en worker thread). Si la verificación es exitosa,
-      replace_chain y reconciliar mempool.
+    - CHAIN_RESPONSE: si la cadena recibida es más larga que la local, encolar la
+      verificación pesada en `chain_dispatcher` (worker thread). Si la verificación es
+      exitosa, replace_chain y reconciliar mempool.
     - GET_MEMPOOL: responder al origen con MEMPOOL_RESPONSE.
     - MEMPOOL_RESPONSE: añadir transacciones nuevas al mempool tras validarlas.
-    - PING: responder PONG con el mismo timestamp.
-    - PONG: actualizar marca de keepalive del peer.
+
+    HELLO (handshake) NO se procesa aquí: lo resuelven las capas TCP (receiver/sender)
+    antes de entregar mensajes a este servicio. La repropagación usa
+    `broadcast(message, exclude_node_id=peer.node_id)` para no devolver el mensaje al
+    emisor (ver doc/protocolo.md §6.7).
     """
 
     def __init__(
@@ -38,14 +41,14 @@ class PropagationService:
         transaction_repository: ITransactionRepository,
         transaction_validator: ITransactionValidator,
         block_validator: IBlockValidator,
-        chain_verifier: IChainVerifier,
+        chain_dispatcher: ChainVerificationDispatcher,
         message_sender: IMessageSender,
     ) -> None:
         self._blockchain_repository = blockchain_repository
         self._transaction_repository = transaction_repository
         self._transaction_validator = transaction_validator
         self._block_validator = block_validator
-        self._chain_verifier = chain_verifier
+        self._chain_dispatcher = chain_dispatcher
         self._message_sender = message_sender
 
     async def handle_message(self, peer: NodeInfo, message: Message) -> None:

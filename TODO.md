@@ -10,10 +10,6 @@
 
 - Descubrimiento automático de peers (hoy la lista de peers se pasa por `--peers`).
 
-## Persistencia
-
-- Compactación / poda de la base SQLite cuando la cadena crezca mucho.
-
 ## Despliegue
 
 - Crear `Dockerfile` (imagen base con Python y dependencias del proyecto, copia del código y `ENTRYPOINT` apuntando a `run.py`).

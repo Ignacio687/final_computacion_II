@@ -1,24 +1,17 @@
 """Adaptador HTTP: servidor del nodo (GET /balance, GET /transactions, GET /status, POST /tx)."""
 
-from main.application.interfaces.wallet_query import IWalletQuery
-from main.application.interfaces.transaction_submit import ITransactionSubmit
+from main.controller.http_handlers import HTTPHandlers
 
 
 class HTTPServer:
-    """Servidor HTTP del nodo. Bindea en `bind_host:port`. Delega en IWalletQuery (consultas)
-    y en ITransactionSubmit (envío de tx). Devuelve JSON en todas las respuestas."""
+    """Servidor HTTP del nodo. Bindea en `bind_host:port`. Enruta cada request al método
+    correspondiente de `HTTPHandlers` y devuelve JSON en todas las respuestas
+    (ver formato en doc/protocolo.md §10)."""
 
-    def __init__(
-        self,
-        bind_host: str,
-        port: int,
-        wallet_query: IWalletQuery,
-        transaction_submit: ITransactionSubmit,
-    ) -> None:
+    def __init__(self, bind_host: str, port: int, handlers: HTTPHandlers) -> None:
         self._bind_host = bind_host
         self._port = port
-        self._wallet_query = wallet_query
-        self._transaction_submit = transaction_submit
+        self._handlers = handlers
 
     async def start(self) -> None:
         raise NotImplementedError

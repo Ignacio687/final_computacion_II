@@ -7,8 +7,8 @@ from dataclasses import dataclass
 class NodeInfo:
     """Datos de conexión de un nodo peer.
 
-    node_id es None hasta que se completa el primer intercambio de mensajes con el peer
-    (queda definido cuando el peer envía su primer mensaje firmado y se identifica)."""
+    node_id es None hasta que se completa el handshake HELLO con el peer (doc/protocolo.md
+    §6.5); a partir de ahí queda definido junto con la clave pública registrada del peer."""
 
     host: str
     port: int

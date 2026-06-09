@@ -21,5 +21,9 @@ class HTTPHandlers:
         raise NotImplementedError
 
     async def handle_post_tx(self, body: bytes) -> tuple[int, dict]:
-        """Devuelve (status_code, body_dict)."""
+        """Parsea la TransactionDTO del body y la envía vía ITransactionSubmit.
+        Devuelve (status_code, body_dict) según doc/protocolo.md §10:
+            - aceptada: (200, {"accepted": True,  "tx_id": <id>, "error": None})
+            - rechazada/inválida: (400, {"accepted": False, "tx_id": None, "error": <motivo>})
+        """
         raise NotImplementedError

@@ -32,11 +32,11 @@ class NodeConfig:
     private_key_path: str                 # archivo PEM con la clave privada del nodo
     public_key_path: str                  # archivo PEM con la clave pública del nodo
 
-    # Conectividad TCP entre nodos
-    ping_interval_seconds: float          # frecuencia con la que se envía PING a cada peer
-    pong_timeout_seconds: float           # tiempo sin recibir PONG para considerar caída
-    reconnect_initial_seconds: float      # backoff inicial al reconectar
-    reconnect_max_seconds: float          # backoff máximo al reconectar
+    # Canal entre nodos
+    shared_key: str                       # clave simétrica precompartida (base64, 32 bytes) para cifrar payloads
+    reconnect_delay_seconds: float        # delay fijo de reintento al caerse una conexión (sin keepalive)
 
-    # Génesis
+    # Génesis y fondeo inicial
     genesis_seed: str                     # semilla que define el bloque génesis (idéntica en toda la red)
+    genesis_prefund_accounts: int         # cantidad de cuentas pre-fondeadas derivadas de la semilla
+    genesis_prefund_amount: int           # saldo inicial asignado a cada cuenta pre-fondeada

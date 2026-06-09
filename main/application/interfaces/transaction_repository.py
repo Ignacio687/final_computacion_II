@@ -7,7 +7,16 @@ from main.domain.models.transaction import Transaction
 
 
 class ITransactionRepository(ABC):
-    """Contrato para mempool (transacciones pendientes) y transacciones confirmadas en bloques."""
+    """Contrato para consultas a nivel de TRANSACCIÓN.
+
+    Frontera de responsabilidad con IBlockchainRepository:
+    - IBlockchainRepository es dueño de la estructura de la CADENA (bloques, encadenado,
+      altura, append/replace). Es la fuente de verdad de lo confirmado.
+    - ITransactionRepository es dueño del MEMPOOL (pendientes) y de las CONSULTAS por
+      transacción/dirección sobre lo confirmado (balance, historial). Las lecturas
+      confirmadas se resuelven sobre la misma BD SQLite (tabla de tx indexada por bloque
+      que `append_block`/`replace_chain` mantienen), pero NUNCA modifica la cadena.
+    """
 
     @abstractmethod
     def add_to_mempool(self, tx: Transaction) -> None:

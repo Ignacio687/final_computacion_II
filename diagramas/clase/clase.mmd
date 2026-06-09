@@ -1,31 +1,13 @@
 classDiagram
-  class Nodo {
-    -blockchain: list
-    -mempool: list
-    -peers: list
-    +iniciar()
-    +atender_tcp()
-    +atender_http()
-    +minar()
-    +propagar_tx()
-    +propagar_bloque()
-    +validar_cadena()
-  }
-  class Billetera {
-    -nodo_url: str
-    +consultar_balance()
-    +consultar_transacciones()
-    +enviar_tx()
-    +generar_tx_prueba()
-  }
+  %% ===== Dominio =====
   class Block {
-    +id: str
+    +id: int
     +last_hash: str
     +hash: str
     +timestamp: datetime
     +target: int
     +nonce: int
-    +transactions: list
+    +transactions: list~Transaction~
   }
   class Transaction {
     +id: str
@@ -35,15 +17,132 @@ classDiagram
     +signature: bytes
     +public_key: bytes
   }
-  class Usuario {
-    +id: str
-    +public_key: bytes
-    +private_key: bytes
-    +firmar_tx()
+  class Message {
+    +type: MessageType
+    +payload: MessagePayload
   }
-  Nodo "1" --> "*" Block : contiene
-  Nodo --> "*" Transaction : mempool
-  Block --> "*" Transaction : incluye
-  Billetera --> Nodo : HTTP
-  Billetera --> Usuario : gestiona
-  Usuario --> Transaction : firma
+  class NodeInfo {
+    +host: str
+    +port: int
+    +node_id: str
+  }
+  Block "1" o-- "*" Transaction : incluye
+  Message --> NodeInfo
+
+  %% ===== Interfaces (application) =====
+  class IMessageSender {
+    <<interface>>
+    +send_to_peer()
+    +broadcast(exclude_node_id)
+    +connected_count()
+  }
+  class IMessageReceiver {
+    <<interface>>
+    +set_handler()
+    +start()
+  }
+  class IBlockValidator {
+    <<interface>>
+    +validate(block, previous_hash)
+  }
+  class IChainVerifier {
+    <<interface>>
+    +verify_chain(blocks)
+  }
+  class ITransactionValidator {
+    <<interface>>
+    +validate(tx)
+  }
+  class IProofOfWork {
+    <<interface>>
+  }
+  class IGenesisProvider {
+    <<interface>>
+    +get_genesis_block()
+  }
+  class ISigner {
+    <<interface>>
+  }
+  class IVerifier {
+    <<interface>>
+  }
+  class IBlockchainRepository {
+    <<interface>>
+  }
+  class ITransactionRepository {
+    <<interface>>
+  }
+
+  %% ===== Infraestructura (adaptadores) =====
+  class TCPMessageSender
+  class TCPMessageReceiver
+  class MessageCodec
+  class DefaultBlockValidator
+  class DefaultChainVerifier
+  class DefaultTransactionValidator
+  class ChainVerificationDispatcher
+  class SHA256ProofOfWork
+  class SeedGenesisProvider
+  class CryptographySigner
+  class CryptographyVerifier
+  class SQLiteBlockchainRepository
+  class SQLiteTransactionRepository
+  class HTTPServer
+
+  TCPMessageSender ..|> IMessageSender
+  TCPMessageReceiver ..|> IMessageReceiver
+  DefaultBlockValidator ..|> IBlockValidator
+  DefaultChainVerifier ..|> IChainVerifier
+  DefaultTransactionValidator ..|> ITransactionValidator
+  SHA256ProofOfWork ..|> IProofOfWork
+  SeedGenesisProvider ..|> IGenesisProvider
+  CryptographySigner ..|> ISigner
+  CryptographyVerifier ..|> IVerifier
+  SQLiteBlockchainRepository ..|> IBlockchainRepository
+  SQLiteTransactionRepository ..|> ITransactionRepository
+  TCPMessageSender --> MessageCodec
+  TCPMessageReceiver --> MessageCodec
+  ChainVerificationDispatcher --> IChainVerifier
+
+  %% ===== Servicios =====
+  class NodeService
+  class PropagationService
+  class MiningService
+  class WalletQueryService
+  class TransactionSubmitService
+
+  NodeService --> IMessageSender
+  NodeService --> IMessageReceiver
+  NodeService --> HTTPServer
+  NodeService --> PropagationService
+  NodeService --> MiningService
+  NodeService --> ChainVerificationDispatcher
+  PropagationService --> IBlockValidator
+  PropagationService --> ITransactionValidator
+  PropagationService --> ChainVerificationDispatcher
+  PropagationService --> IMessageSender
+  MiningService --> IProofOfWork
+  MiningService --> IMessageSender
+  WalletQueryService --> IMessageSender
+  TransactionSubmitService --> ITransactionValidator
+  TransactionSubmitService --> IMessageSender
+
+  %% ===== Controllers / Bootstrap =====
+  class HTTPHandlers
+  class TCPMessageHandler
+  class NodeBootstrap
+  HTTPServer --> HTTPHandlers
+  HTTPHandlers --> WalletQueryService
+  HTTPHandlers --> TransactionSubmitService
+  TCPMessageHandler --> PropagationService
+  NodeBootstrap ..> NodeService : construye e inyecta
+
+  %% ===== Billetera =====
+  class WalletClient
+  class WalletConsole
+  class TransactionGenerator
+  class KeyStore
+  WalletConsole --> WalletClient
+  WalletConsole --> KeyStore
+  TransactionGenerator --> WalletClient
+  TransactionGenerator --> KeyStore

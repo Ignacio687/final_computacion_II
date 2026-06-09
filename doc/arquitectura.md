@@ -7,31 +7,29 @@ Descripción de nodos, conectividad y mecanismos de IPC. Los diagramas (clase, e
 ## Vista de componentes
 
 ```
-                    ┌─────────────────────────────────────────────────────────┐
-                    │                      RED LOCAL                           │
-                    │  ┌──────┐    TCP (JSON cifrado/firmado)    ┌──────┐     │
-                    │  │Nodo 1│◄──────────────────────────────►│Nodo 2│     │
-                    │  └──┬───┘                                 └──┬───┘     │
-                    │     │                                         │         │
-                    │     │    ┌──────┐         ┌──────┐           │         │
-                    │     └────►Nodo 3│◄───────►│Nodo 4│◄──────────┘         │
-                    │          └──┬───┘         └──┬───┘                      │
-                    │             │                 │                          │
-                    │             └────────┬────────┘                          │
-                    │                      │                                    │
-                    │                 ┌────▼────┐                               │
-                    │                 │ Nodo 5 │                               │
-                    │                 └────┬────┘                               │
-                    │                      │                                    │
-                    └──────────────────────┼────────────────────────────────────┘
-                                           │
-                         HTTP (REST)       │
-                    ┌─────────────────────▼─────────────────────┐
-                    │              Billetera (cliente)           │
-                    │  - Consola                                │
-                    │  - Generador de transacciones de prueba   │
-                    └──────────────────────────────────────────┘
+        ┌──────────────────────────────────────────────────────────┐
+        │                        RED LOCAL                           │
+        │   TCP: payload cifrado (clave precompartida) + firma       │
+        │                                                            │
+        │     ┌──────┐───────────────────────────────┌──────┐       │
+        │     │Nodo 1│                                │Nodo 2│       │
+        │     └──┬───┘                                └──┬───┘       │
+        │        │                                       │           │
+        │     ┌──┴───┐────────────┌──────┐────────────┌──┴───┐      │
+        │     │Nodo 3│────────────│Nodo 5│────────────│Nodo 4│      │
+        │     └──┬───┘            └──────┘            └──────┘       │
+        │        │                                                   │
+        └────────┼───────────────────────────────────────────────-─┘
+                 │  HTTP (REST)
+        ┌────────▼───────────────────────────────────┐
+        │              Billetera (cliente)            │
+        │  - Consola                                  │
+        │  - Generador de transacciones de prueba     │
+        └─────────────────────────────────────────────┘
 ```
+
+Aristas TCP (idénticas al diagrama Mermaid): N1–N2, N1–N3, N2–N4, N3–N4, N3–N5, N4–N5.
+La billetera habla HTTP con N1 y N3.
 
 - **Nodos (4–5 en Docker)**: Cada uno tiene IP/puerto propio. Se conocen por **lista estática de peers** (argparse). Opcional a futuro: descubrimiento automático de peers.
 - **Billetera**: Un proceso/cliente que se conecta por HTTP al nodo (o nodos) indicado por parámetro.
@@ -44,7 +42,7 @@ Descripción de nodos, conectividad y mecanismos de IPC. Los diagramas (clase, e
 
 | Origen       | Destino   | Protocolo | Uso |
 |-------------|-----------|------------|-----|
-| Nodo ↔ Nodo | Peer      | TCP        | Mensajes JSON cifrados y firmados: propagación de transacciones y bloques, solicitud/envió de cadena, mempool, keepalive (PING/PONG). |
+| Nodo ↔ Nodo | Peer      | TCP        | Sobres JSON con payload cifrado (clave precompartida) y firma del emisor: handshake (HELLO), propagación de transacciones y bloques, solicitud/envío de cadena y mempool. |
 | Billetera   | Nodo      | HTTP       | Consultas (balance, transacciones, estado) y envío de transacciones (POST). |
 | Nodo        | SQLite    | Archivo local | Persistencia de blockchain y mempool (cada bloque/tx aceptado). |
 
@@ -52,7 +50,7 @@ Cada nodo abre:
 - **Un socket TCP** en un puerto (8001, 8002, …) para el protocolo entre nodos.
 - **Un servidor HTTP** en otro puerto (9081, 9082, …) para la billetera y otros clientes.
 
-La lista de peers se pasa por línea de comando (`--peers 127.0.0.1:8002,127.0.0.1:8003`). **Estrategia de conexión**: cada nodo mantiene una **conexión TCP persistente** con cada peer de su lista. Si una conexión se cae (cierre inesperado o timeout sin PONG), el nodo la cierra, espera un intervalo con backoff exponencial y vuelve a conectar hasta restablecer la conexión.
+La lista de peers se pasa por línea de comando (`--peers 127.0.0.1:8002,127.0.0.1:8003`). **Estrategia de conexión**: cada nodo mantiene una **conexión TCP persistente** con cada peer de su lista. Si una conexión se cae, el nodo espera un **delay fijo** (`--reconnect-delay-seconds`) y vuelve a conectar hasta restablecerla (sin keepalive PING/PONG).
 
 ---
 

@@ -18,10 +18,15 @@ class CryptographySigner(ISigner):
             - Autenticación: el peer verifica con la clave pública del nodo emisor que
               el mensaje provino de un nodo conocido y no de un atacante.
             - Integridad: detecta cualquier modificación del mensaje en tránsito.
-        El cifrado del canal (confidencialidad) se resuelve por separado mediante TLS.
+        El cifrado del canal (confidencialidad) se resuelve por separado con una clave
+        simétrica precompartida (AES-GCM, ver doc/protocolo.md §9).
 
     `private_key_path` y `public_key_path` apuntan a archivos PEM del nodo. Son distintos
     de las claves de los usuarios, que viven en `WalletAccount` dentro de la billetera.
+
+    Algoritmo: **Ed25519** (ver doc/protocolo.md §1.1). `sign` devuelve los bytes crudos de
+    `Ed25519PrivateKey.sign(payload)`; `get_public_key` devuelve la clave pública en bytes
+    **DER** (SubjectPublicKeyInfo).
     """
 
     def __init__(self, private_key_path: str, public_key_path: str) -> None:

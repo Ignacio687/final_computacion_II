@@ -5,7 +5,7 @@ flowchart TB
     N3[Nodo 3]
     N4[Nodo 4]
     N5[Nodo 5]
-    N1 <-->|TCP JSON cifrado/firmado| N2
+    N1 <-->|TCP: payload cifrado clave precompartida + firma| N2
     N1 <--> N3
     N2 <--> N4
     N3 <--> N4

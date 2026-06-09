@@ -14,8 +14,9 @@ Listado de responsabilidades y acciones de cada componente. Los diagramas de cla
 - **Atender conexiones TCP (peers)**
   - Aceptar conexiones entrantes de otros nodos.
   - Recibir mensajes (longitud + JSON cifrado/firmado), deserializar y verificar firma/cifrado.
-  - Según tipo: **NEW_TX** → validar transacción, añadir a mempool, persistir, reenviar a otros peers; **NEW_BLOCK** → validar bloque, si es válido añadir a cadena, actualizar mempool, persistir, reenviar; **GET_CHAIN** → responder **CHAIN_RESPONSE**; **GET_MEMPOOL** → **MEMPOOL_RESPONSE**; **PING** → **PONG**.
-  - Enviar mensajes a peers (propagación, respuestas). Mantener una conexión TCP persistente con cada peer; ante caída de conexión (cierre inesperado o timeout sin PONG), cerrar y reconectar con backoff exponencial.
+  - Completar el handshake **HELLO** al aceptar una conexión (registrar `node_id` y clave pública del peer).
+  - Según tipo: **NEW_TX** → validar transacción, añadir a mempool, persistir, reenviar a otros peers (excepto al origen); **NEW_BLOCK** → validar bloque, si es válido añadir a cadena, actualizar mempool, persistir, reenviar (excepto al origen); **GET_CHAIN** → responder **CHAIN_RESPONSE**; **GET_MEMPOOL** → **MEMPOOL_RESPONSE**.
+  - Enviar mensajes a peers (propagación, respuestas). Mantener una conexión TCP persistente con cada peer; ante caída de conexión, reconectar con un **delay fijo** (sin keepalive).
 
 - **Atender HTTP (billetera / clientes)**
   - **GET** consultas: balance por dirección, transacciones (o últimas de la cadena), estado (altura, dificultad, etc.).
@@ -69,7 +70,7 @@ Listado de responsabilidades y acciones de cada componente. Los diagramas de cla
 
 ## Generador de bloque génesis
 
-- **Responsabilidad**: A partir de una **semilla** (cadena), construir el **bloque génesis** de forma **determinista** (mismas entradas → mismo bloque, bit a bit).
+- **Responsabilidad**: A partir de una **semilla** (cadena), construir el **bloque génesis** de forma **determinista** (mismas entradas → mismo bloque, bit a bit). El génesis incluye además **cuentas pre-fondeadas** derivadas de la semilla (transacciones de fondeo `GENESIS`), para que el generador de transacciones de prueba tenga saldo inicial y no produzca transacciones inválidas (ver [protocolo.md](../doc/protocolo.md) §8).
 - **Quién comparte la semilla**: el operador de la red. La semilla es un parámetro de despliegue que se pasa idéntico a todos los nodos vía línea de comandos (`--genesis-seed SEED`) o variable de entorno común en `docker-compose.yml`. **No** se genera al arrancar cada nodo (si cada uno generara la suya, todos tendrían un génesis distinto y la regla de la cadena más larga no funcionaría).
 - **Cuándo se ejecuta**: cada nodo, al arrancar con la BD vacía, llama al generador con la semilla recibida; obtiene el bloque génesis y lo persiste como primer bloque. Como el algoritmo es determinista, todos los nodos terminan con el mismo bloque génesis sin necesidad de coordinación adicional.
 - **Después del primer arranque**: la semilla ya no se usa en runtime; la cadena local persiste en SQLite y crece con bloques minados.
@@ -81,7 +82,7 @@ Listado de responsabilidades y acciones de cada componente. Los diagramas de cla
 
 - **Responsabilidad**: Crear datos de prueba para que la red tenga actividad: usuarios (pares de claves) y transacciones firmadas entre ellos.
 - **Ubicación**: Integrado en la **billetera** (modo “generador”) y/o como script/herramienta aparte que envía transacciones por HTTP a un nodo.
-- **Funciones**: Generar N direcciones (claves); generar transacciones entre ellas con montos aleatorios; firmar y enviar por POST al nodo; repetir en intervalo para simular tráfico continuo.
+- **Funciones**: Derivar las cuentas **pre-fondeadas** del génesis (a partir de la misma semilla) para tener saldo inicial; generar transacciones entre cuentas con montos válidos (≤ balance consultado al nodo); firmar y enviar por POST al nodo; repetir en intervalo para simular tráfico continuo.
 
 ---
 

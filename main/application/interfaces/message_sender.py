@@ -11,8 +11,8 @@ class IMessageSender(ABC):
 
     @abstractmethod
     async def start(self) -> None:
-        """Abre conexiones TCP persistentes con todos los peers de la lista.
-        Aplica reconexión con backoff exponencial ante caídas."""
+        """Abre conexiones TCP persistentes con todos los peers de la lista (con handshake
+        HELLO). Ante caída de una conexión, reintenta con un delay fijo (sin keepalive)."""
         ...
 
     @abstractmethod
@@ -27,6 +27,15 @@ class IMessageSender(ABC):
         ...
 
     @abstractmethod
-    async def broadcast(self, message: Message) -> None:
-        """Envía el mensaje a todos los peers conectados."""
+    async def broadcast(self, message: Message, exclude_node_id: str | None = None) -> None:
+        """Envía el mensaje a todos los peers conectados.
+
+        Si `exclude_node_id` no es None, omite a ese peer (se usa al repropagar para no
+        devolver el mensaje a su emisor; ver doc/protocolo.md §6.7)."""
+        ...
+
+    @abstractmethod
+    def connected_count(self) -> int:
+        """Cantidad de peers actualmente conectados (con handshake completado).
+        Lo consume WalletQueryService para el campo `peers_connected` de GET /status."""
         ...

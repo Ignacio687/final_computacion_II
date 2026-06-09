@@ -1,14 +1,13 @@
 """Payloads tipados del protocolo TCP entre nodos.
 
 Cada MessageType tiene UN payload concreto. Mapeo obligatorio (sin excepciones):
+    HELLO             -> HelloPayload
     NEW_TX            -> NewTxPayload
     NEW_BLOCK         -> NewBlockPayload
     GET_CHAIN         -> GetChainPayload
     CHAIN_RESPONSE    -> ChainResponsePayload
     GET_MEMPOOL       -> GetMempoolPayload
     MEMPOOL_RESPONSE  -> MempoolResponsePayload
-    PING              -> PingPayload
-    PONG              -> PongPayload
 """
 
 from __future__ import annotations
@@ -18,6 +17,20 @@ from typing import List, Union
 
 from main.repository.dto.block_dto import BlockDTO
 from main.repository.dto.transaction_dto import TransactionDTO
+
+
+@dataclass(frozen=True)
+class HelloPayload:
+    """Payload de HELLO (handshake, ver doc/protocolo.md §6.5).
+
+    - node_id: identificador del nodo emisor.
+    - public_key: clave pública del nodo en base64 (DER). El receptor la registra para
+      verificar las firmas de los próximos mensajes de ese node_id (TOFU).
+    - listen_port: puerto TCP donde el emisor acepta conexiones (para reconectar)."""
+
+    node_id: str
+    public_key: str
+    listen_port: int
 
 
 @dataclass(frozen=True)
@@ -62,27 +75,12 @@ class MempoolResponsePayload:
     transactions: List[TransactionDTO]
 
 
-@dataclass(frozen=True)
-class PingPayload:
-    """Payload de PING. timestamp del emisor (epoch en segundos, float)."""
-
-    timestamp: float
-
-
-@dataclass(frozen=True)
-class PongPayload:
-    """Payload de PONG. Eco del timestamp del PING al que responde."""
-
-    ping_timestamp: float
-
-
 MessagePayload = Union[
+    HelloPayload,
     NewTxPayload,
     NewBlockPayload,
     GetChainPayload,
     ChainResponsePayload,
     GetMempoolPayload,
     MempoolResponsePayload,
-    PingPayload,
-    PongPayload,
 ]

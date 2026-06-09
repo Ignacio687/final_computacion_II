@@ -7,8 +7,10 @@ from main.domain.models.transaction import Transaction
 
 
 class SQLiteTransactionRepository(ITransactionRepository):
-    """Implementación de ITransactionRepository usando SQLite. Crea las tablas si no existen
-    al instanciarse. db_path es el mismo archivo que usa SQLiteBlockchainRepository."""
+    """Implementación de ITransactionRepository usando SQLite (esquema canónico en
+    doc/protocolo.md §11: tablas `mempool` y `transactions`). db_path es el mismo archivo
+    que usa SQLiteBlockchainRepository. Las consultas de balance/historial se calculan solo
+    sobre `transactions` (confirmadas), nunca sobre `mempool`."""
 
     def __init__(self, db_path: str) -> None:
         self._db_path = db_path

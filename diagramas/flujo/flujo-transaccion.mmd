@@ -7,5 +7,5 @@ flowchart TD
   F --> G[Persistir en SQLite]
   G --> H[Propagar por TCP a peers]
   H --> I[Peers reciben NEW_TX]
-  I --> J[Cada peer valida y añade a mempool]
-  J --> K[Reenviar a sus peers]
+  I --> J[Cada peer valida y añade a mempool si es nueva]
+  J --> K[Repropagar a sus peers excepto al origen]

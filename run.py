@@ -5,15 +5,20 @@
                           --peers host:port,host:port --db-path ./node.db --difficulty 2 \\
                           --pow-workers 4 --min-tx-per-block 5 --block-interval-seconds 10 \\
                           --mining-reward 50 --mining-address ADDR --private-key-path priv.pem \\
-                          --public-key-path pub.pem --ping-interval-seconds 5 \\
-                          --pong-timeout-seconds 15 --reconnect-initial-seconds 1 \\
-                          --reconnect-max-seconds 30 --genesis-seed SEED
+                          --public-key-path pub.pem --shared-key BASE64KEY \\
+                          --reconnect-delay-seconds 3 --genesis-seed SEED \\
+                          --genesis-prefund-accounts 5 --genesis-prefund-amount 1000
 
     python run.py wallet  --node-url http://localhost:9081 --keys-dir ./keys \\
+                          --genesis-seed SEED \\
                           [--generator --generator-users 10 --generator-interval-seconds 1.0]
+
+Variables de entorno: --genesis-seed y --shared-key toman su valor de HASHCOIN_GENESIS_SEED
+y HASHCOIN_SHARED_KEY respectivamente si no se pasan por CLI (útil en docker-compose).
 """
 import argparse
 import asyncio
+import os
 import sys
 
 
@@ -32,16 +37,20 @@ def _build_node_parser(sub: argparse.ArgumentParser) -> None:
     sub.add_argument("--mining-address", type=str, required=True)
     sub.add_argument("--private-key-path", type=str, required=True)
     sub.add_argument("--public-key-path", type=str, required=True)
-    sub.add_argument("--ping-interval-seconds", type=float, required=True)
-    sub.add_argument("--pong-timeout-seconds", type=float, required=True)
-    sub.add_argument("--reconnect-initial-seconds", type=float, required=True)
-    sub.add_argument("--reconnect-max-seconds", type=float, required=True)
-    sub.add_argument("--genesis-seed", type=str, required=True)
+    sub.add_argument("--shared-key", type=str, default=os.environ.get("HASHCOIN_SHARED_KEY"),
+                     help="clave simétrica precompartida en base64 (o env HASHCOIN_SHARED_KEY)")
+    sub.add_argument("--reconnect-delay-seconds", type=float, default=3.0)
+    sub.add_argument("--genesis-seed", type=str, default=os.environ.get("HASHCOIN_GENESIS_SEED"),
+                     help="semilla del génesis (o env HASHCOIN_GENESIS_SEED)")
+    sub.add_argument("--genesis-prefund-accounts", type=int, default=5)
+    sub.add_argument("--genesis-prefund-amount", type=int, default=1000)
 
 
 def _build_wallet_parser(sub: argparse.ArgumentParser) -> None:
     sub.add_argument("--node-url", type=str, required=True)
     sub.add_argument("--keys-dir", type=str, required=True)
+    sub.add_argument("--genesis-seed", type=str, default=os.environ.get("HASHCOIN_GENESIS_SEED"),
+                     help="semilla del génesis (o env HASHCOIN_GENESIS_SEED)")
     sub.add_argument("--generator", action="store_true")
     sub.add_argument("--generator-users", type=int, default=0)
     sub.add_argument("--generator-interval-seconds", type=float, default=1.0)
@@ -81,11 +90,11 @@ def main() -> int:
             mining_address=args.mining_address,
             private_key_path=args.private_key_path,
             public_key_path=args.public_key_path,
-            ping_interval_seconds=args.ping_interval_seconds,
-            pong_timeout_seconds=args.pong_timeout_seconds,
-            reconnect_initial_seconds=args.reconnect_initial_seconds,
-            reconnect_max_seconds=args.reconnect_max_seconds,
+            shared_key=args.shared_key,
+            reconnect_delay_seconds=args.reconnect_delay_seconds,
             genesis_seed=args.genesis_seed,
+            genesis_prefund_accounts=args.genesis_prefund_accounts,
+            genesis_prefund_amount=args.genesis_prefund_amount,
         )
         asyncio.run(create_and_run_node(config))
         return 0
@@ -100,6 +109,7 @@ def main() -> int:
             generator_mode=args.generator,
             generator_users=args.generator_users,
             generator_interval_seconds=args.generator_interval_seconds,
+            genesis_seed=args.genesis_seed,
         )
         return run_wallet(config)
 

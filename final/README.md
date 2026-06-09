@@ -6,7 +6,7 @@ Proyecto integrador para Computación II: una blockchain mínima con varios nodo
 
 ## Objetivo en una frase
 
-Demostrar una red de 5–6 nodos que mantienen una blockchain en común, con PoW repartido en múltiples núcleos por nodo (configurable), comunicación entre nodos y atención asincrónica a clientes, usando herramientas de la materia (sockets, asyncio, multiprocessing, IPC, colas, Docker).
+Demostrar una red de 4–5 nodos que mantienen una blockchain en común, con PoW repartido en múltiples núcleos por nodo (configurable), comunicación entre nodos y atención asincrónica a clientes, usando herramientas de la materia (sockets, asyncio, multiprocessing, IPC, colas, Docker).
 
 ---
 
@@ -28,7 +28,7 @@ Demostrar una red de 5–6 nodos que mantienen una blockchain en común, con PoW
 2. **Bloque (minado y propagación)**  
    Un nodo arma un bloque con un conjunto de transacciones, añade la transacción de recompensa de minado y resuelve el PoW (hash con cierta dificultad) usando **múltiples núcleos/hilos** en paralelo (trabajo distribuido dentro del nodo). Cuando encuentra la solución, envía el bloque a los demás nodos. Cada nodo que lo recibe lo valida; si es válido, lo agrega a su cadena y lo retransmite. Si llega una cadena más larga y válida, el nodo reemplaza la suya (regla de la cadena más larga).
 
-El PoW es **deliberadamente sencillo** (pocos ceros en el hash o condición similar) para poder correr todo en local (5–6 nodos en la misma máquina) y observar el comportamiento sin sobrecargar la CPU.
+El PoW es **deliberadamente sencillo** (pocos ceros en el hash o condición similar) para poder correr todo en local (4–5 nodos en la misma máquina) y observar el comportamiento sin sobrecargar la CPU.
 
 ![Arquitectura: nodos y billetera](../diagramas/arquitectura/arquitectura.png)
 
@@ -38,7 +38,7 @@ El PoW es **deliberadamente sencillo** (pocos ceros en el hash o condición simi
 
 | Concepto | Uso en el proyecto |
 |----------|---------------------|
-| **Sockets** | Comunicación entre nodos (TCP) para propagar transacciones y bloques; posiblemente billetera ↔ nodo por socket o HTTP. |
+| **Sockets** | Comunicación entre nodos (TCP) para propagar transacciones y bloques; billetera ↔ nodo siempre por HTTP. |
 | **Conexión de clientes múltiples de forma concurrente** | Cada nodo atiende muchas conexiones a la vez (otros nodos + billetera/consulta) de forma no bloqueante. |
 | **Asincronismo de I/O** | Servidor del nodo con **asyncio** (`asyncio.start_server`, streams) para atender varias peticiones simultáneas sin bloquear. |
 | **IPC** | Dentro del nodo: comunicación entre el “servidor” que recibe requests y los **workers** que hacen el cálculo del hash (PoW), usando por ejemplo **multiprocessing.Queue** (o similar) para repartir trabajo. |
@@ -56,7 +56,7 @@ La documentación detallada (descripción verbal extendida, arquitectura y funci
 
 - **SQLite en lugar de MySQL**: menos complejidad de despliegue (sin contenedor de BD separado), un archivo por nodo/billetera, suficiente para el alcance del proyecto y para demostrar persistencia sin añadir requisitos de infraestructura. Si más adelante se quisiera escalar o replicar con MySQL, el diseño de capas puede mantenerse.
 - **Billetera por consola**: el foco es la red de nodos y el minado distribuido; la billetera es un extra; consola mantiene el alcance acotado y evita complejidad de frontend.
-- **PoW sencillo y varios nodos en local**: permite probar 5–6 nodos en una sola máquina (ej. 16 hilos / 8 núcleos), asignar distinta cantidad de núcleos por nodo y observar que los que tienen más capacidad ganan más bloques, sin que un nodo pueda hacer trampa alterando transacciones gracias a la verificación criptográfica y al consenso (cadena más larga).
+- **PoW sencillo y varios nodos en local**: permite probar 4–5 nodos en una sola máquina (ej. 16 hilos / 8 núcleos), asignar distinta cantidad de núcleos por nodo y observar que los que tienen más capacidad ganan más bloques, sin que un nodo pueda hacer trampa alterando transacciones gracias a la verificación criptográfica y al consenso (cadena más larga).
 
 ---
 

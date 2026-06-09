@@ -10,5 +10,5 @@ sequenceDiagram
   N1->>N3: NEW_TX (TCP)
   N2->>N2: Validar, mempool, persistir
   N3->>N3: Validar, mempool, persistir
-  N2->>N2: Reenviar a sus peers
-  N3->>N3: Reenviar a sus peers
+  N2->>N3: Repropagar NEW_TX (excepto al origen N1)
+  N3->>N2: Repropagar NEW_TX (excepto al origen N1)
