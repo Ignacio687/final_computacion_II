@@ -1,30 +1,133 @@
 """Adaptador TCP: servidor que recibe mensajes y los entrega al handler registrado."""
 
+import asyncio
+import struct
+from typing import Optional
+
 from main.application.interfaces.message_receiver import IMessageReceiver, MessageHandler
+from main.domain.models.message import Message, MessageType
+from main.domain.models.node_info import NodeInfo
+from main.domain.models.payloads import HelloPayload
+from main.infrastructure.serialization.canonical import b64_to_bytes, bytes_to_b64
 from main.infrastructure.serialization.message_codec import MessageCodec
+from main.infrastructure.tcp.tcp_message_sender import TCPMessageSender
 
 
 class TCPMessageReceiver(IMessageReceiver):
-    """Implementación TCP de IMessageReceiver (ver doc/protocolo.md §6).
+    """Implementación TCP de IMessageReceiver (ver doc/protocolo.md §6)."""
 
-    Levanta `asyncio.start_server` en `bind_host:port`. Por cada conexión entrante:
-    lee 4 bytes (big-endian) con la longitud del sobre, lee el cuerpo y lo decodifica con
-    `codec` (descifra el payload + verifica la firma contra la clave pública del peer
-    obtenida en el handshake HELLO). El primer mensaje de una conexión debe ser HELLO;
-    hasta registrarlo no se entregan otros mensajes. Los mensajes válidos (no-HELLO) se
-    pasan al handler registrado."""
-
-    def __init__(self, bind_host: str, port: int, codec: MessageCodec) -> None:
+    def __init__(
+        self,
+        bind_host: str,
+        port: int,
+        codec: MessageCodec,
+        node_id: str,
+        listen_port: int,
+        message_sender: TCPMessageSender,
+        public_key_der: bytes,
+    ) -> None:
         self._bind_host = bind_host
         self._port = port
         self._codec = codec
+        self._node_id = node_id
+        self._listen_port = listen_port
+        self._message_sender = message_sender
+        self._public_key_b64 = bytes_to_b64(public_key_der)
         self._handler: MessageHandler | None = None
+        self._server: Optional[asyncio.Server] = None
 
     def set_handler(self, handler: MessageHandler) -> None:
-        raise NotImplementedError
+        self._handler = handler
 
     async def start(self) -> None:
-        raise NotImplementedError
+        self._server = await asyncio.start_server(
+            self._handle_client,
+            self._bind_host,
+            self._port,
+        )
 
     async def stop(self) -> None:
-        raise NotImplementedError
+        if self._server is not None:
+            self._server.close()
+            await self._server.wait_closed()
+            self._server = None
+
+    async def _handle_client(
+        self,
+        reader: asyncio.StreamReader,
+        writer: asyncio.StreamWriter,
+    ) -> None:
+        peer_host, peer_port = writer.get_extra_info("peername")[:2]
+        handshake_done = False
+        peer_node_id: Optional[str] = None
+        peer_public_key: Optional[bytes] = None
+        lock = asyncio.Lock()
+
+        try:
+            while True:
+                length_bytes = await reader.readexactly(4)
+                length = struct.unpack(">I", length_bytes)[0]
+                raw = await reader.readexactly(length)
+                message = self._codec.decode(
+                    raw,
+                    peer_public_key if handshake_done else None,
+                )
+
+                if message.type == MessageType.HELLO:
+                    hello = message.payload
+                    if not isinstance(hello, HelloPayload):
+                        break
+                    peer_node_id = hello.node_id
+                    peer_public_key = b64_to_bytes(hello.public_key)
+                    handshake_done = True
+                    self._message_sender.register_incoming(
+                        peer_node_id,
+                        peer_host,
+                        peer_port,
+                        reader,
+                        writer,
+                        peer_public_key,
+                    )
+                    response = Message(
+                        type=MessageType.HELLO,
+                        payload=HelloPayload(
+                            node_id=self._node_id,
+                            public_key=self._public_key_b64,
+                            listen_port=self._listen_port,
+                        ),
+                    )
+                    await self._write_message(writer, lock, response)
+                    continue
+
+                if not handshake_done:
+                    break
+
+                if self._handler is not None and peer_node_id is not None:
+                    peer = NodeInfo(
+                        host=peer_host,
+                        port=peer_port,
+                        node_id=peer_node_id,
+                    )
+                    await self._handler(peer, message)
+        except (asyncio.IncompleteReadError, ConnectionResetError, ValueError):
+            pass
+        finally:
+            if peer_node_id is not None:
+                self._message_sender.unregister_incoming(peer_node_id)
+            try:
+                writer.close()
+                await writer.wait_closed()
+            except Exception:
+                pass
+
+    async def _write_message(
+        self,
+        writer: asyncio.StreamWriter,
+        lock: asyncio.Lock,
+        message: Message,
+    ) -> None:
+        raw = self._codec.encode(message, self._node_id)
+        framed = struct.pack(">I", len(raw)) + raw
+        async with lock:
+            writer.write(framed)
+            await writer.drain()
