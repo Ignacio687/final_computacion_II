@@ -17,6 +17,10 @@ Orden de construcción:
 """
 
 from main.config.wallet_config import WalletConfig
+from main.wallet.console import WalletConsole
+from main.wallet.key_store import KeyStore
+from main.wallet.tx_generator import TransactionGenerator
+from main.wallet.wallet_client import WalletClient
 
 
 def run_wallet(config: WalletConfig) -> int:
@@ -27,4 +31,18 @@ def run_wallet(config: WalletConfig) -> int:
 
     Devuelve el código de salida (0 si terminó correctamente).
     """
-    raise NotImplementedError
+    client = WalletClient(config.node_url)
+    key_store = KeyStore(config.keys_dir)
+
+    if config.generator_mode:
+        generator = TransactionGenerator(
+            client,
+            key_store,
+            config.genesis_seed,
+            config.generator_users,
+            config.generator_interval_seconds,
+        )
+        return generator.run()
+
+    console = WalletConsole(client, key_store)
+    return console.run()
