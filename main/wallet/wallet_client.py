@@ -24,8 +24,13 @@ class WalletClient:
     `node_url` es la URL base (http://host:port), sin slash final.
     """
 
-    def __init__(self, node_url: str) -> None:
-        self._node_url = node_url.rstrip("/")
+    def __init__(
+        self,
+        node_url: str,
+        fallback_node_urls: tuple[str, ...] | list[str] = (),
+    ) -> None:
+        self._node_urls = [node_url.rstrip("/")]
+        self._node_urls.extend(url.rstrip("/") for url in fallback_node_urls)
 
     def get_balance(self, address: str) -> int:
         query = urllib.parse.urlencode({"address": address})
@@ -75,17 +80,33 @@ class WalletClient:
         data: bytes | None = None,
         headers: dict[str, str] | None = None,
     ) -> object:
-        url = f"{self._node_url}{path}"
         request_headers = dict(headers or {})
-        req = urllib.request.Request(url, data=data, method=method, headers=request_headers)
-        try:
-            with urllib.request.urlopen(req) as resp:
-                raw = resp.read().decode("utf-8")
-        except urllib.error.HTTPError as exc:
-            raw = exc.read().decode("utf-8")
-            if method == "POST" and path == "/tx":
-                raise exc
-            raise
-        if not raw:
-            return {}
-        return json.loads(raw)
+        last_error: Exception | None = None
+        for base_url in self._node_urls:
+            url = f"{base_url}{path}"
+            req = urllib.request.Request(
+                url, data=data, method=method, headers=request_headers
+            )
+            try:
+                with urllib.request.urlopen(req) as resp:
+                    raw = resp.read().decode("utf-8")
+            except urllib.error.HTTPError as exc:
+                if method == "POST" and path == "/tx":
+                    raise exc
+                if exc.code >= 500:
+                    last_error = exc
+                    continue
+                raw = exc.read().decode("utf-8")
+                if not raw:
+                    return {}
+                return json.loads(raw)
+            except urllib.error.URLError as exc:
+                last_error = exc
+                continue
+            else:
+                if not raw:
+                    return {}
+                return json.loads(raw)
+        if last_error is not None:
+            raise last_error
+        raise urllib.error.URLError("no hay nodos disponibles")

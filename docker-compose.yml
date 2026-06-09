@@ -1,3 +1,4 @@
+# Copiar .env.example a .env antes del primer arranque (valores solo de laboratorio).
 services:
   node1:
     build: .
@@ -31,8 +32,8 @@ services:
       - --genesis-prefund-amount
       - "1000"
     environment:
-      HASHCOIN_GENESIS_SEED: ${HASHCOIN_GENESIS_SEED:-hashcoin-docker-seed}
-      HASHCOIN_SHARED_KEY: ${HASHCOIN_SHARED_KEY:-AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=}
+      HASHCOIN_GENESIS_SEED: ${HASHCOIN_GENESIS_SEED}
+      HASHCOIN_SHARED_KEY: ${HASHCOIN_SHARED_KEY}
     volumes:
       - node1-data:/data
     cpus: "0.50"
@@ -70,8 +71,8 @@ services:
       - --genesis-prefund-amount
       - "1000"
     environment:
-      HASHCOIN_GENESIS_SEED: ${HASHCOIN_GENESIS_SEED:-hashcoin-docker-seed}
-      HASHCOIN_SHARED_KEY: ${HASHCOIN_SHARED_KEY:-AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=}
+      HASHCOIN_GENESIS_SEED: ${HASHCOIN_GENESIS_SEED}
+      HASHCOIN_SHARED_KEY: ${HASHCOIN_SHARED_KEY}
     volumes:
       - node2-data:/data
     cpus: "0.35"
@@ -109,8 +110,8 @@ services:
       - --genesis-prefund-amount
       - "1000"
     environment:
-      HASHCOIN_GENESIS_SEED: ${HASHCOIN_GENESIS_SEED:-hashcoin-docker-seed}
-      HASHCOIN_SHARED_KEY: ${HASHCOIN_SHARED_KEY:-AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=}
+      HASHCOIN_GENESIS_SEED: ${HASHCOIN_GENESIS_SEED}
+      HASHCOIN_SHARED_KEY: ${HASHCOIN_SHARED_KEY}
     volumes:
       - node3-data:/data
     cpus: "0.40"
@@ -148,8 +149,8 @@ services:
       - --genesis-prefund-amount
       - "1000"
     environment:
-      HASHCOIN_GENESIS_SEED: ${HASHCOIN_GENESIS_SEED:-hashcoin-docker-seed}
-      HASHCOIN_SHARED_KEY: ${HASHCOIN_SHARED_KEY:-AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=}
+      HASHCOIN_GENESIS_SEED: ${HASHCOIN_GENESIS_SEED}
+      HASHCOIN_SHARED_KEY: ${HASHCOIN_SHARED_KEY}
     volumes:
       - node4-data:/data
     cpus: "0.30"
@@ -187,8 +188,8 @@ services:
       - --genesis-prefund-amount
       - "1000"
     environment:
-      HASHCOIN_GENESIS_SEED: ${HASHCOIN_GENESIS_SEED:-hashcoin-docker-seed}
-      HASHCOIN_SHARED_KEY: ${HASHCOIN_SHARED_KEY:-AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=}
+      HASHCOIN_GENESIS_SEED: ${HASHCOIN_GENESIS_SEED}
+      HASHCOIN_SHARED_KEY: ${HASHCOIN_SHARED_KEY}
     volumes:
       - node5-data:/data
     cpus: "0.25"
@@ -203,6 +204,8 @@ services:
       - wallet
       - --node-url
       - http://node1:9081
+      - --fallback-node-url
+      - http://node3:9083
       - --keys-dir
       - /data/keys
       - --generator
@@ -211,7 +214,7 @@ services:
       - --generator-interval-seconds
       - "2.0"
     environment:
-      HASHCOIN_GENESIS_SEED: ${HASHCOIN_GENESIS_SEED:-hashcoin-docker-seed}
+      HASHCOIN_GENESIS_SEED: ${HASHCOIN_GENESIS_SEED}
     volumes:
       - wallet-data:/data
     cpus: "0.20"

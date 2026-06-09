@@ -64,8 +64,12 @@ No se usa TLS ni keepalive TCP: las reconexiones usan un delay fijo configurable
 ## Despliegue
 
 - **Docker Compose**: 5 nodos con topología estática de peers (ver `doc/arquitectura.md`) y 1
-  billetera generadora. `HASHCOIN_GENESIS_SEED` y `HASHCOIN_SHARED_KEY` unifican la red.
-- Claves de nodo pre-generadas en `docker/keys/` (derivación determinista por `node_id`).
+  billetera generadora. `HASHCOIN_GENESIS_SEED` y `HASHCOIN_SHARED_KEY` unifican la red
+  (valores de laboratorio en `.env.example`; copiar a `.env` antes del arranque).
+- Claves Ed25519 de cada nodo se generan en el entrypoint (`docker/entrypoint_node.sh`) la
+  primera vez que arranca el contenedor y persisten en el volumen `/data/keys`; no se commitean
+  claves privadas al repositorio.
+- La billetera usa `node1` como nodo HTTP principal y hace fallback a `node3` si no responde.
 - CPUs limitadas por servicio para simular nodos heterogéneos.
 
 ## Dependencias

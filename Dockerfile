@@ -12,7 +12,7 @@ COPY docker ./docker
 RUN chmod +x /app/docker/entrypoint_node.sh
 
 ENV PYTHONUNBUFFERED=1
-ENV HASHCOIN_GENESIS_SEED=hashcoin-docker-seed
-ENV HASHCOIN_SHARED_KEY=AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=
+# HASHCOIN_GENESIS_SEED y HASHCOIN_SHARED_KEY deben inyectarse en runtime
+# (ver .env.example). No usar valores por defecto en producción.
 
 ENTRYPOINT ["python", "run.py"]

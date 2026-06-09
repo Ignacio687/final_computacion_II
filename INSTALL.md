@@ -94,12 +94,14 @@ La configuración de `pytest.ini` añade el directorio raíz al `PYTHONPATH`.
 ## Despliegue con Docker Compose
 
 La topología incluye **5 nodos** (CPUs distintas por servicio) y **1 billetera** en modo
-generador. Las claves de cada nodo están en `docker/keys/`; la semilla y la clave simétrica
-se inyectan por entorno:
+generador. Las claves Ed25519 de cada nodo se generan automáticamente en el primer arranque
+(`docker/entrypoint_node.sh`) y se guardan en el volumen `/data/keys` del contenedor.
+
+Los valores por defecto de `.env.example` son **solo para laboratorio**. En producción
+generar una semilla y una clave simétrica fuertes y no commitear `.env`.
 
 ```bash
-export HASHCOIN_GENESIS_SEED="hashcoin-docker-seed"
-export HASHCOIN_SHARED_KEY="AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE="
+cp .env.example .env
 docker compose up --build
 ```
 
@@ -113,8 +115,8 @@ Puertos HTTP expuestos internamente en la red Docker:
 | node4    | 8004        | 9084             |
 | node5    | 8005        | 9085             |
 
-La billetera se conecta a `http://node1:9081` y genera tráfico periódico para alimentar el
-mempool de la red.
+La billetera se conecta a `http://node1:9081` con fallback a `http://node3:9083` y genera
+tráfico periódico para alimentar el mempool de la red.
 
 Para detener y limpiar volúmenes:
 

@@ -1,6 +1,12 @@
 #cursor
 .cursor/*
 
+#secrets / runtime
+.env
+docker/keys/**/priv.pem
+docker/keys/**/pub.pem
+docker/keys/**/mining_address.txt
+
 #python
 __pycache__
 *.pyc

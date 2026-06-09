@@ -31,7 +31,7 @@ def run_wallet(config: WalletConfig) -> int:
 
     Devuelve el código de salida (0 si terminó correctamente).
     """
-    client = WalletClient(config.node_url)
+    client = WalletClient(config.node_url, config.fallback_node_urls)
     key_store = KeyStore(config.keys_dir)
 
     if config.generator_mode:
