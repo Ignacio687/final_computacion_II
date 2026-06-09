@@ -1,8 +1,8 @@
 """Handler de mensajes TCP: recibe (peer, message) y delega en PropagationService."""
 
-from main.service.propagation_service import PropagationService
 from main.domain.models.message import Message
 from main.domain.models.node_info import NodeInfo
+from main.service.propagation_service import PropagationService
 
 
 class TCPMessageHandler:
@@ -12,4 +12,4 @@ class TCPMessageHandler:
         self._propagation_service = propagation_service
 
     async def handle(self, peer: NodeInfo, message: Message) -> None:
-        raise NotImplementedError
+        await self._propagation_service.handle_message(peer, message)
