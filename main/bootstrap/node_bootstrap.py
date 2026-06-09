@@ -60,10 +60,12 @@ async def create_and_run_node(config: NodeConfig) -> None:
         transaction_validator,
         config.difficulty,
         config.mining_reward,
+        config.genesis_prefund_amount,
     )
     chain_verifier = DefaultChainVerifier(block_validator, genesis_provider)
     chain_dispatcher = ChainVerificationDispatcher(chain_verifier, workers=1)
     pool = ProcessPoolExecutor(max_workers=config.pow_workers)
+    chain_lock = asyncio.Lock()
 
     message_sender = TCPMessageSender(
         config.peers,
@@ -90,6 +92,7 @@ async def create_and_run_node(config: NodeConfig) -> None:
         block_validator,
         chain_dispatcher,
         message_sender,
+        chain_lock,
     )
     mining_service = MiningService(
         blockchain_repository,
@@ -103,6 +106,7 @@ async def create_and_run_node(config: NodeConfig) -> None:
         config.block_interval_seconds,
         config.mining_reward,
         config.mining_address,
+        chain_lock,
     )
     wallet_query_service = WalletQueryService(
         transaction_repository,
@@ -115,6 +119,7 @@ async def create_and_run_node(config: NodeConfig) -> None:
         transaction_repository,
         transaction_validator,
         message_sender,
+        chain_lock,
     )
 
     tcp_handler = TCPMessageHandler(propagation_service)
@@ -140,4 +145,4 @@ async def create_and_run_node(config: NodeConfig) -> None:
         pass
     finally:
         await node_service.stop()
-        pool.shutdown(wait=False)
+        pool.shutdown(wait=True, cancel_futures=True)

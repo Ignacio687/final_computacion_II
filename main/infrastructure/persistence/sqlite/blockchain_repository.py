@@ -1,12 +1,12 @@
 """Adaptador: persistencia de la blockchain en SQLite."""
 
 import sqlite3
-import threading
-from typing import List
+from typing import Callable, List, Optional
 
 from main.application.interfaces.blockchain_repository import IBlockchainRepository
 from main.domain.models.block import Block
 from main.domain.models.transaction import Transaction
+from main.infrastructure.persistence.sqlite.db_lock import get_db_lock
 from main.repository.dto.mappers import block_from_dto, block_to_dto, transaction_from_dto, transaction_to_dto
 from main.repository.dto.block_dto import BlockDTO
 from main.repository.dto.transaction_dto import TransactionDTO
@@ -56,7 +56,6 @@ def _connect(db_path: str) -> sqlite3.Connection:
 
 
 def ensure_schema(db_path: str) -> None:
-    """Crea las tablas canónicas si no existen (§11)."""
     with _connect(db_path) as conn:
         conn.executescript(_SCHEMA)
         conn.commit()
@@ -130,15 +129,9 @@ def _insert_block(conn: sqlite3.Connection, block: Block) -> None:
 
 
 class SQLiteBlockchainRepository(IBlockchainRepository):
-    """Implementación de IBlockchainRepository usando SQLite. Crea las tablas si no existen
-    al instanciarse (esquema canónico en doc/protocolo.md §11: tablas `blocks` y
-    `transactions`). db_path es la ruta del archivo SQLite (un archivo por nodo).
-    `append_block` persiste el bloque y sus tx (con `position`) y limpia del mempool las tx
-    confirmadas; `replace_chain` reemplaza la cadena de forma atómica."""
-
     def __init__(self, db_path: str) -> None:
         self._db_path = db_path
-        self._lock = threading.Lock()
+        self._lock = get_db_lock(db_path)
         ensure_schema(db_path)
 
     def get_chain(self) -> List[Block]:
@@ -160,7 +153,10 @@ class SQLiteBlockchainRepository(IBlockchainRepository):
         tx_ids = [tx.id for tx in block.transactions]
         with self._lock:
             with _connect(self._db_path) as conn:
-                _insert_block(conn, block)
+                try:
+                    _insert_block(conn, block)
+                except sqlite3.IntegrityError:
+                    return
                 if tx_ids:
                     placeholders = ",".join("?" for _ in tx_ids)
                     conn.execute(
@@ -169,7 +165,12 @@ class SQLiteBlockchainRepository(IBlockchainRepository):
                     )
                 conn.commit()
 
-    def replace_chain(self, blocks: List[Block]) -> None:
+    def replace_chain(
+        self,
+        blocks: List[Block],
+        *,
+        tx_reinsert_filter: Optional[Callable[[Transaction], bool]] = None,
+    ) -> None:
         new_confirmed_ids = {tx.id for block in blocks for tx in block.transactions}
         with self._lock:
             with _connect(self._db_path) as conn:
@@ -202,21 +203,26 @@ class SQLiteBlockchainRepository(IBlockchainRepository):
                     if tx_id in mempool_ids:
                         continue
                     tx = old_tx_by_id[tx_id]
+                    if tx_reinsert_filter is not None and not tx_reinsert_filter(tx):
+                        continue
                     tx_dto = transaction_to_dto(tx)
-                    conn.execute(
-                        "INSERT INTO mempool "
-                        "(id, seq, sender_id, receiver_id, amount, signature, public_key) "
-                        "VALUES (?, ?, ?, ?, ?, ?, ?)",
-                        (
-                            tx_dto.id,
-                            next_seq,
-                            tx_dto.sender_id,
-                            tx_dto.receiver_id,
-                            tx_dto.amount,
-                            tx_dto.signature,
-                            tx_dto.public_key,
-                        ),
-                    )
+                    try:
+                        conn.execute(
+                            "INSERT INTO mempool "
+                            "(id, seq, sender_id, receiver_id, amount, signature, public_key) "
+                            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                            (
+                                tx_dto.id,
+                                next_seq,
+                                tx_dto.sender_id,
+                                tx_dto.receiver_id,
+                                tx_dto.amount,
+                                tx_dto.signature,
+                                tx_dto.public_key,
+                            ),
+                        )
+                    except sqlite3.IntegrityError:
+                        continue
                     next_seq += 1
 
                 conn.commit()
@@ -232,7 +238,7 @@ class SQLiteBlockchainRepository(IBlockchainRepository):
                 return _load_block(conn, row)
 
     def get_height(self) -> int:
-        with self._lock:
-            with _connect(self._db_path) as conn:
-                row = conn.execute("SELECT COUNT(*) FROM blocks").fetchone()
-                return int(row[0])
+        last = self.get_last_block()
+        if last is None:
+            return -1
+        return last.id

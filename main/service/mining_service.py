@@ -1,6 +1,8 @@
 """Servicio de minado: arma bloque candidato, ejecuta PoW en ProcessPoolExecutor."""
 
 import asyncio
+import logging
+import sqlite3
 from concurrent.futures import Executor
 from datetime import datetime, timezone
 
@@ -20,10 +22,10 @@ from main.infrastructure.validation.block_validator import (
 )
 from main.repository.dto.mappers import block_to_dto
 
+logger = logging.getLogger(__name__)
+
 
 class MiningService:
-    """Minado periódico con ProcessPoolExecutor."""
-
     def __init__(
         self,
         blockchain_repository: IBlockchainRepository,
@@ -37,6 +39,7 @@ class MiningService:
         block_interval_seconds: float,
         mining_reward: int,
         mining_address: str,
+        chain_lock: asyncio.Lock,
     ) -> None:
         self._blockchain_repository = blockchain_repository
         self._transaction_repository = transaction_repository
@@ -49,6 +52,7 @@ class MiningService:
         self._block_interval_seconds = block_interval_seconds
         self._mining_reward = mining_reward
         self._mining_address = mining_address
+        self._chain_lock = chain_lock
         self._last_attempt: float | None = None
         self._running = False
         self._task: asyncio.Task | None = None
@@ -71,7 +75,6 @@ class MiningService:
 
         tip_id = last_block.id
         tip_hash = last_block.hash
-        tip_timestamp = last_block.timestamp
         block_id = tip_id + 1
         coinbase = Transaction(
             id=coinbase_id(block_id, self._mining_address, self._mining_reward),
@@ -96,17 +99,19 @@ class MiningService:
         candidate.nonce = result.nonce
         candidate.hash = result.block_hash
 
-        tip = self._blockchain_repository.get_last_block()
-        if tip is None or tip.id != tip_id or tip.hash != tip_hash:
-            return
-        if candidate.id != tip.id + 1 or candidate.last_hash != tip.hash:
-            return
-        if not self._is_candidate_valid(candidate, tip):
-            return
+        async with self._chain_lock:
+            tip = self._blockchain_repository.get_last_block()
+            if tip is None or tip.id != tip_id or tip.hash != tip_hash:
+                return
+            if candidate.id != tip.id + 1 or candidate.last_hash != tip.hash:
+                return
+            if not self._is_candidate_valid(candidate, tip):
+                return
 
-        self._blockchain_repository.append_block(candidate)
-        tx_ids = [tx.id for tx in candidate.transactions]
-        self._transaction_repository.remove_from_mempool(tx_ids)
+            self._blockchain_repository.append_block(candidate)
+            tx_ids = [tx.id for tx in candidate.transactions]
+            self._transaction_repository.remove_from_mempool(tx_ids)
+
         await self._message_sender.broadcast(
             Message(
                 type=MessageType.NEW_BLOCK,
@@ -130,8 +135,10 @@ class MiningService:
         while self._running:
             try:
                 await self.try_mine()
+            except sqlite3.IntegrityError:
+                logger.warning("Bloque duplicado al minar; se descarta el candidato")
             except Exception:
-                pass
+                logger.exception("Error inesperado en el loop de minado")
             await asyncio.sleep(1.0)
 
     async def stop_loop(self) -> None:

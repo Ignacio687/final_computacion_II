@@ -1,7 +1,6 @@
 """Adaptador: persistencia de transacciones (mempool y confirmadas) en SQLite."""
 
 import sqlite3
-import threading
 from typing import List
 
 from main.application.interfaces.transaction_repository import ITransactionRepository
@@ -11,18 +10,14 @@ from main.infrastructure.persistence.sqlite.blockchain_repository import (
     _transaction_from_row,
     ensure_schema,
 )
+from main.infrastructure.persistence.sqlite.db_lock import get_db_lock
 from main.repository.dto.mappers import transaction_to_dto
 
 
 class SQLiteTransactionRepository(ITransactionRepository):
-    """Implementación de ITransactionRepository usando SQLite (esquema canónico en
-    doc/protocolo.md §11: tablas `mempool` y `transactions`). db_path es el mismo archivo
-    que usa SQLiteBlockchainRepository. Las consultas de balance/historial se calculan solo
-    sobre `transactions` (confirmadas), nunca sobre `mempool`."""
-
     def __init__(self, db_path: str) -> None:
         self._db_path = db_path
-        self._lock = threading.Lock()
+        self._lock = get_db_lock(db_path)
         ensure_schema(db_path)
 
     def add_to_mempool(self, tx: Transaction) -> None:
@@ -31,20 +26,23 @@ class SQLiteTransactionRepository(ITransactionRepository):
             with _connect(self._db_path) as conn:
                 row = conn.execute("SELECT COALESCE(MAX(seq), -1) + 1 FROM mempool").fetchone()
                 seq = row[0]
-                conn.execute(
-                    "INSERT INTO mempool "
-                    "(id, seq, sender_id, receiver_id, amount, signature, public_key) "
-                    "VALUES (?, ?, ?, ?, ?, ?, ?)",
-                    (
-                        dto.id,
-                        seq,
-                        dto.sender_id,
-                        dto.receiver_id,
-                        dto.amount,
-                        dto.signature,
-                        dto.public_key,
-                    ),
-                )
+                try:
+                    conn.execute(
+                        "INSERT INTO mempool "
+                        "(id, seq, sender_id, receiver_id, amount, signature, public_key) "
+                        "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                        (
+                            dto.id,
+                            seq,
+                            dto.sender_id,
+                            dto.receiver_id,
+                            dto.amount,
+                            dto.signature,
+                            dto.public_key,
+                        ),
+                    )
+                except sqlite3.IntegrityError:
+                    return
                 conn.commit()
 
     def get_mempool(self) -> List[Transaction]:

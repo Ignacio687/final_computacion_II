@@ -108,7 +108,10 @@ class TCPMessageReceiver(IMessageReceiver):
                         port=peer_port,
                         node_id=peer_node_id,
                     )
-                    await self._handler(peer, message)
+                    try:
+                        await self._handler(peer, message)
+                    except Exception:
+                        pass
         except (asyncio.IncompleteReadError, ConnectionResetError, ValueError):
             pass
         finally:

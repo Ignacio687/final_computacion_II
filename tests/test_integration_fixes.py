@@ -46,6 +46,7 @@ def test_block_validator_rejects_non_increasing_timestamp():
         DefaultTransactionValidator(CryptographyVerifier()),
         DIFFICULTY,
         MINING_REWARD,
+        PREFUND_AMOUNT,
     )
     coinbase = Transaction(
         id=coinbase_id(1, MINING_ADDRESS, MINING_REWARD),
@@ -82,6 +83,7 @@ def test_mined_block_validation_accepts_tx_in_local_mempool():
         DefaultTransactionValidator(CryptographyVerifier(), repo),
         DIFFICULTY,
         MINING_REWARD,
+        PREFUND_AMOUNT,
     )
     coinbase = Transaction(
         id=coinbase_id(1, MINING_ADDRESS, MINING_REWARD),
@@ -131,6 +133,7 @@ async def test_mining_discards_stale_candidate_after_pow():
         DefaultTransactionValidator(CryptographyVerifier()),
         DIFFICULTY,
         MINING_REWARD,
+        PREFUND_AMOUNT,
     )
 
     coinbase1 = Transaction(
@@ -182,6 +185,7 @@ async def test_mining_discards_stale_candidate_after_pow():
         block_interval_seconds=0.0,
         mining_reward=MINING_REWARD,
         mining_address=MINING_ADDRESS,
+        chain_lock=asyncio.Lock(),
     )
     service._last_attempt = None
 

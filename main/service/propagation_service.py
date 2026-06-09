@@ -1,5 +1,7 @@
 """Servicio de propagación: maneja mensajes entrantes y reenvía cuando corresponde."""
 
+import asyncio
+
 from main.application.interfaces.block_validator import IBlockValidator
 from main.application.interfaces.blockchain_repository import IBlockchainRepository
 from main.application.interfaces.message_sender import IMessageSender
@@ -26,8 +28,6 @@ from main.repository.dto.mappers import block_from_dto, block_to_dto, transactio
 
 
 class PropagationService:
-    """Despacha cada mensaje entrante por tipo."""
-
     def __init__(
         self,
         blockchain_repository: IBlockchainRepository,
@@ -36,6 +36,7 @@ class PropagationService:
         block_validator: IBlockValidator,
         chain_dispatcher: ChainVerificationDispatcher,
         message_sender: IMessageSender,
+        chain_lock: asyncio.Lock,
     ) -> None:
         self._blockchain_repository = blockchain_repository
         self._transaction_repository = transaction_repository
@@ -43,6 +44,7 @@ class PropagationService:
         self._block_validator = block_validator
         self._chain_dispatcher = chain_dispatcher
         self._message_sender = message_sender
+        self._chain_lock = chain_lock
 
     async def handle_message(self, peer: NodeInfo, message: Message) -> None:
         if message.type == MessageType.NEW_TX:
@@ -62,11 +64,12 @@ class PropagationService:
         if not isinstance(message.payload, NewTxPayload):
             return
         tx = transaction_from_dto(message.payload.transaction)
-        if self._transaction_repository.exists_in_mempool_or_chain(tx.id):
-            return
-        if not self._transaction_validator.validate(tx):
-            return
-        self._transaction_repository.add_to_mempool(tx)
+        async with self._chain_lock:
+            if self._transaction_repository.exists_in_mempool_or_chain(tx.id):
+                return
+            if not self._transaction_validator.validate(tx):
+                return
+            self._transaction_repository.add_to_mempool(tx)
         await self._message_sender.broadcast(
             Message(
                 type=MessageType.NEW_TX,
@@ -79,33 +82,53 @@ class PropagationService:
         if not isinstance(message.payload, NewBlockPayload):
             return
         block = block_from_dto(message.payload.block)
-        local_height = self._blockchain_repository.get_height()
-        if block.id < local_height:
-            return
-        last_block = self._blockchain_repository.get_last_block()
-        if last_block is None:
-            return
-        if block.id == last_block.id and block.hash == last_block.hash:
-            return
-
-        previous_hash = last_block.hash
         block_valid = False
-        if block.id == last_block.id + 1:
-            if isinstance(self._block_validator, DefaultBlockValidator):
-                balances = balances_from_chain(self._blockchain_repository.get_chain())
-                block_valid = self._block_validator.validate_with_balances(
-                    block,
-                    previous_hash,
-                    balances,
-                    previous_timestamp=last_block.timestamp,
-                )
+        async with self._chain_lock:
+            local_height = self._blockchain_repository.get_height()
+            if block.id < local_height:
+                return
+            last_block = self._blockchain_repository.get_last_block()
+            if last_block is None:
+                return
+            if block.id == last_block.id and block.hash == last_block.hash:
+                return
+            if block.id == local_height and block.hash != last_block.hash:
+                await self._request_chain(peer)
+                return
+
+            previous_hash = last_block.hash
+            if block.id == last_block.id + 1:
+                if isinstance(self._block_validator, DefaultBlockValidator):
+                    balances = balances_from_chain(
+                        self._blockchain_repository.get_chain()
+                    )
+                    block_valid = self._block_validator.validate_with_balances(
+                        block,
+                        previous_hash,
+                        balances,
+                        previous_timestamp=last_block.timestamp,
+                    )
+                else:
+                    block_valid = self._block_validator.validate(block, previous_hash)
+
+            if block_valid:
+                tip = self._blockchain_repository.get_last_block()
+                if (
+                    tip is None
+                    or tip.id != last_block.id
+                    or tip.hash != last_block.hash
+                ):
+                    return
+                self._blockchain_repository.append_block(block)
+                tx_ids = [tx.id for tx in block.transactions]
+                self._transaction_repository.remove_from_mempool(tx_ids)
+            elif block.id >= local_height and block.last_hash != previous_hash:
+                await self._request_chain(peer)
+                return
             else:
-                block_valid = self._block_validator.validate(block, previous_hash)
+                return
 
         if block_valid:
-            self._blockchain_repository.append_block(block)
-            tx_ids = [tx.id for tx in block.transactions]
-            self._transaction_repository.remove_from_mempool(tx_ids)
             await self._message_sender.broadcast(
                 Message(
                     type=MessageType.NEW_BLOCK,
@@ -113,16 +136,15 @@ class PropagationService:
                 ),
                 exclude_node_id=peer.node_id,
             )
-            return
 
-        if block.id >= local_height and block.last_hash != previous_hash:
-            await self._message_sender.send_to_peer(
-                peer,
-                Message(
-                    type=MessageType.GET_CHAIN,
-                    payload=GetChainPayload(since_height=0),
-                ),
-            )
+    async def _request_chain(self, peer: NodeInfo) -> None:
+        await self._message_sender.send_to_peer(
+            peer,
+            Message(
+                type=MessageType.GET_CHAIN,
+                payload=GetChainPayload(since_height=0),
+            ),
+        )
 
     async def _handle_get_chain(self, peer: NodeInfo, message: Message) -> None:
         if not isinstance(message.payload, GetChainPayload):
@@ -144,10 +166,19 @@ class PropagationService:
         if not isinstance(message.payload, ChainResponsePayload):
             return
         blocks = [block_from_dto(dto) for dto in message.payload.blocks]
-        if len(blocks) <= self._blockchain_repository.get_height():
+        local_height = self._blockchain_repository.get_height()
+        if not blocks or blocks[-1].id <= local_height:
             return
-        if await self._chain_dispatcher.verify(blocks):
-            self._blockchain_repository.replace_chain(blocks)
+        if not await self._chain_dispatcher.verify(blocks):
+            return
+        async with self._chain_lock:
+            local_height = self._blockchain_repository.get_height()
+            if not blocks or blocks[-1].id <= local_height:
+                return
+            self._blockchain_repository.replace_chain(
+                blocks,
+                tx_reinsert_filter=self._transaction_validator.validate,
+            )
             confirmed_ids = {
                 tx.id for block in blocks for tx in block.transactions
             }
@@ -168,9 +199,10 @@ class PropagationService:
     async def _handle_mempool_response(self, message: Message) -> None:
         if not isinstance(message.payload, MempoolResponsePayload):
             return
-        for dto in message.payload.transactions:
-            tx = transaction_from_dto(dto)
-            if self._transaction_repository.exists_in_mempool_or_chain(tx.id):
-                continue
-            if self._transaction_validator.validate(tx):
-                self._transaction_repository.add_to_mempool(tx)
+        async with self._chain_lock:
+            for dto in message.payload.transactions:
+                tx = transaction_from_dto(dto)
+                if self._transaction_repository.exists_in_mempool_or_chain(tx.id):
+                    continue
+                if self._transaction_validator.validate(tx):
+                    self._transaction_repository.add_to_mempool(tx)

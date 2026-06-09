@@ -67,6 +67,14 @@ class TCPMessageSender(IMessageSender):
         writer: asyncio.StreamWriter,
         public_key: bytes,
     ) -> None:
+        for key, conn in list(self._outgoing.items()):
+            if conn.node_id == node_id:
+                self._outgoing.pop(key, None)
+                try:
+                    asyncio.get_running_loop().create_task(self._close_connection(conn))
+                except RuntimeError:
+                    pass
+
         conn = _PeerConnection(
             host=host,
             port=port,
@@ -228,7 +236,10 @@ class TCPMessageSender(IMessageSender):
                 continue
             if self._handler is not None and conn.node_id is not None:
                 peer = NodeInfo(host=conn.host, port=conn.port, node_id=conn.node_id)
-                await self._handler(peer, message)
+                try:
+                    await self._handler(peer, message)
+                except Exception:
+                    pass
 
     async def _write_message(
         self,

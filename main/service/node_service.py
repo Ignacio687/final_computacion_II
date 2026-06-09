@@ -40,7 +40,7 @@ class NodeService:
         self._mining_task: asyncio.Task | None = None
 
     async def start(self) -> None:
-        if self._blockchain_repository.get_height() == 0:
+        if self._blockchain_repository.get_last_block() is None:
             self._blockchain_repository.append_block(
                 self._genesis_provider.get_genesis_block()
             )
