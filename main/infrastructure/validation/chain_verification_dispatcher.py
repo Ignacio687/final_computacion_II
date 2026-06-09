@@ -12,10 +12,23 @@ el event loop. El flujo (ver doc/funcionalidades.md "Verificación de cadena"):
 Mantenerlo mínimo: 1-2 workers alcanzan para una red local de 4-5 nodos.
 """
 
-from typing import List
+import asyncio
+import queue
+import threading
+from dataclasses import dataclass
+from typing import List, Optional
 
 from main.application.interfaces.chain_verifier import IChainVerifier
 from main.domain.models.block import Block
+
+_SENTINEL = object()
+
+
+@dataclass
+class _VerificationTask:
+    blocks: List[Block]
+    future: asyncio.Future
+    loop: asyncio.AbstractEventLoop
 
 
 class ChainVerificationDispatcher:
@@ -24,15 +37,50 @@ class ChainVerificationDispatcher:
     def __init__(self, chain_verifier: IChainVerifier, workers: int = 1) -> None:
         self._chain_verifier = chain_verifier
         self._workers = workers
+        self._task_queue: Optional[queue.Queue] = None
+        self._stop_event = threading.Event()
+        self._threads: List[threading.Thread] = []
 
     def start(self) -> None:
         """Crea la `queue.Queue` y arranca los worker threads."""
-        raise NotImplementedError
+        self._task_queue = queue.Queue()
+        self._stop_event.clear()
+        self._threads = []
+        for _ in range(self._workers):
+            thread = threading.Thread(target=self._worker_loop, daemon=True)
+            thread.start()
+            self._threads.append(thread)
 
     def stop(self) -> None:
         """Señaliza el fin a los workers y hace join."""
-        raise NotImplementedError
+        self._stop_event.set()
+        if self._task_queue is not None:
+            for _ in range(self._workers):
+                self._task_queue.put(_SENTINEL)
+        for thread in self._threads:
+            thread.join()
+        self._threads.clear()
+        self._task_queue = None
 
     async def verify(self, blocks: List[Block]) -> bool:
         """Encola la cadena y espera (sin bloquear el loop) el resultado del worker."""
-        raise NotImplementedError
+        if self._task_queue is None:
+            raise RuntimeError("ChainVerificationDispatcher no está iniciado")
+
+        loop = asyncio.get_running_loop()
+        future: asyncio.Future = loop.create_future()
+        task = _VerificationTask(blocks=blocks, future=future, loop=loop)
+        self._task_queue.put(task)
+        return await future
+
+    def _worker_loop(self) -> None:
+        while not self._stop_event.is_set():
+            item = self._task_queue.get()
+            if item is _SENTINEL:
+                break
+            task: _VerificationTask = item
+            try:
+                result = self._chain_verifier.verify_chain(task.blocks)
+            except Exception:
+                result = False
+            task.loop.call_soon_threadsafe(task.future.set_result, result)

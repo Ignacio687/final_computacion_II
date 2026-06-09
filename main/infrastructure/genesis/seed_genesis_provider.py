@@ -1,7 +1,21 @@
 """Adaptador: bloque génesis derivado de una semilla string."""
 
+import hashlib
+from datetime import datetime, timezone
+
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+
 from main.application.interfaces.genesis_provider import IGenesisProvider
 from main.domain.models.block import Block
+from main.domain.models.transaction import Transaction
+from main.infrastructure.serialization.canonical import (
+    block_hash,
+    derive_sender_id,
+    genesis_tx_id,
+)
+
+GENESIS_SENDER = "GENESIS"
 
 
 class SeedGenesisProvider(IGenesisProvider):
@@ -25,4 +39,43 @@ class SeedGenesisProvider(IGenesisProvider):
         self._prefund_amount = prefund_amount
 
     def get_genesis_block(self) -> Block:
-        raise NotImplementedError
+        transactions: list[Transaction] = []
+        for index in range(self._prefund_accounts):
+            priv_seed = hashlib.sha256(
+                f"{self._seed}|prefund|{index}".encode("utf-8")
+            ).digest()
+            private_key = Ed25519PrivateKey.from_private_bytes(priv_seed)
+            public_key_der = private_key.public_key().public_bytes(
+                encoding=serialization.Encoding.DER,
+                format=serialization.PublicFormat.SubjectPublicKeyInfo,
+            )
+            address = derive_sender_id(public_key_der)
+            transactions.append(
+                Transaction(
+                    id=genesis_tx_id(index, address, self._prefund_amount),
+                    sender_id=GENESIS_SENDER,
+                    receiver_id=address,
+                    amount=self._prefund_amount,
+                    signature=b"",
+                    public_key=b"",
+                )
+            )
+
+        last_hash = "0" * 64
+        timestamp_epoch = 0.0
+        target = 0
+        nonce = 0
+        tx_ids = [tx.id for tx in transactions]
+        block_hash_value = block_hash(
+            last_hash, timestamp_epoch, target, nonce, tx_ids
+        )
+
+        return Block(
+            id=0,
+            last_hash=last_hash,
+            hash=block_hash_value,
+            timestamp=datetime.fromtimestamp(timestamp_epoch, tz=timezone.utc),
+            target=target,
+            nonce=nonce,
+            transactions=transactions,
+        )
