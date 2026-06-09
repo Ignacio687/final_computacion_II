@@ -89,6 +89,12 @@ y envía solo transacciones con saldo suficiente.
 pytest -q
 ```
 
+Con reporte de cobertura (requiere `requirements-dev.txt`):
+
+```bash
+pytest --cov=main --cov-report=term-missing
+```
+
 La configuración de `pytest.ini` añade el directorio raíz al `PYTHONPATH`.
 
 ## Despliegue con Docker Compose
