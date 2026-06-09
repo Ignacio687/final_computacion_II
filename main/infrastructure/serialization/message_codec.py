@@ -71,7 +71,13 @@ class MessageCodec:
         }
         return json.dumps(envelope).encode("utf-8")
 
-    def decode(self, raw: bytes, peer_public_key: bytes | None) -> Message:
+    def decode(
+        self,
+        raw: bytes,
+        peer_public_key: bytes | None,
+        *,
+        expected_sender_node_id: str | None = None,
+    ) -> Message:
         """Parsea el sobre (ver doc/protocolo.md §6.3): descifra el payload, verifica la
         firma y lo deserializa a la dataclass concreta según el `type` (mapeo estricto §6.4).
 
@@ -80,9 +86,19 @@ class MessageCodec:
           dentro del payload descifrado (TOFU).
         - Para el resto, `peer_public_key` es la clave registrada del peer (obligatoria).
 
+        Si `expected_sender_node_id` está definido (post-handshake), el sobre debe coincidir
+        con el `node_id` registrado del peer (§6.3).
+
         Lanza una excepción si la firma es inválida o el payload no corresponde al type."""
         envelope = json.loads(raw.decode("utf-8"))
         sender_node_id = envelope["sender_node_id"]
+        if (
+            expected_sender_node_id is not None
+            and sender_node_id != expected_sender_node_id
+        ):
+            raise ValueError(
+                "sender_node_id del sobre no coincide con el peer registrado"
+            )
         msg_type = MessageType(envelope["type"])
         payload_cipher = envelope["payload_cipher"]
         signature = b64_to_bytes(envelope["signature"])

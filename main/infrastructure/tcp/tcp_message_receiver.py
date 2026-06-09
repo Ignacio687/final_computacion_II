@@ -76,6 +76,7 @@ class TCPMessageReceiver(IMessageReceiver):
                 message = self._codec.decode(
                     raw,
                     peer_public_key if handshake_done else None,
+                    expected_sender_node_id=peer_node_id if handshake_done else None,
                 )
 
                 if message.type == MessageType.HELLO:

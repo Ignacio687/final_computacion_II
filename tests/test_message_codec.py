@@ -147,6 +147,20 @@ def test_hello_decodes_with_payload_public_key(codec: MessageCodec):
     assert decoded.payload.public_key == bytes_to_b64(node_public_key)
 
 
+def test_decode_rejects_sender_node_id_mismatch(codec: MessageCodec, signer):
+    message = Message(
+        type=MessageType.GET_CHAIN,
+        payload=GetChainPayload(since_height=0),
+    )
+    raw = codec.encode(message, sender_node_id="node-local")
+    with pytest.raises(ValueError, match="sender_node_id"):
+        codec.decode(
+            raw,
+            peer_public_key=signer.get_public_key(),
+            expected_sender_node_id="other-node",
+        )
+
+
 def test_decode_rejects_wrong_payload_shape(codec: MessageCodec, signer):
     wrong_payload = json.dumps({"since_height": 0}).encode("utf-8")
     payload_cipher = codec._encrypt(wrong_payload)

@@ -182,6 +182,13 @@ def test_exists_in_mempool_or_chain(blockchain_repo, transaction_repo):
     assert transaction_repo.exists_in_mempool_or_chain("mempool-tx")
 
 
+def test_append_block_returns_false_on_duplicate_hash(blockchain_repo):
+    genesis = _genesis_block()
+    assert blockchain_repo.append_block(genesis) is True
+    assert blockchain_repo.append_block(genesis) is False
+    assert blockchain_repo.get_height() == 0
+
+
 def test_replace_chain_is_atomic(blockchain_repo, transaction_repo):
     genesis = _genesis_block()
     blockchain_repo.append_block(genesis)

@@ -149,14 +149,14 @@ class SQLiteBlockchainRepository(IBlockchainRepository):
                 ).fetchall()
                 return [_load_block(conn, row) for row in rows]
 
-    def append_block(self, block: Block) -> None:
+    def append_block(self, block: Block) -> bool:
         tx_ids = [tx.id for tx in block.transactions]
         with self._lock:
             with _connect(self._db_path) as conn:
                 try:
                     _insert_block(conn, block)
                 except sqlite3.IntegrityError:
-                    return
+                    return False
                 if tx_ids:
                     placeholders = ",".join("?" for _ in tx_ids)
                     conn.execute(
@@ -164,6 +164,7 @@ class SQLiteBlockchainRepository(IBlockchainRepository):
                         tx_ids,
                     )
                 conn.commit()
+        return True
 
     def replace_chain(
         self,

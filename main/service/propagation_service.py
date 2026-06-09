@@ -83,6 +83,7 @@ class PropagationService:
             return
         block = block_from_dto(message.payload.block)
         block_valid = False
+        needs_chain_sync = False
         async with self._chain_lock:
             local_height = self._blockchain_repository.get_height()
             if block.id < local_height:
@@ -93,7 +94,7 @@ class PropagationService:
             if block.id == last_block.id and block.hash == last_block.hash:
                 return
             if block.id == local_height and block.hash != last_block.hash:
-                await self._request_chain(peer)
+                needs_chain_sync = True
                 return
 
             previous_hash = last_block.hash
@@ -119,14 +120,19 @@ class PropagationService:
                     or tip.hash != last_block.hash
                 ):
                     return
-                self._blockchain_repository.append_block(block)
-                tx_ids = [tx.id for tx in block.transactions]
-                self._transaction_repository.remove_from_mempool(tx_ids)
+                if not self._blockchain_repository.append_block(block):
+                    block_valid = False
+                else:
+                    tx_ids = [tx.id for tx in block.transactions]
+                    self._transaction_repository.remove_from_mempool(tx_ids)
             elif block.id >= local_height and block.last_hash != previous_hash:
-                await self._request_chain(peer)
-                return
+                needs_chain_sync = True
             else:
                 return
+
+        if needs_chain_sync:
+            await self._request_chain(peer)
+            return
 
         if block_valid:
             await self._message_sender.broadcast(
@@ -179,10 +185,13 @@ class PropagationService:
                 blocks,
                 tx_reinsert_filter=self._transaction_validator.validate,
             )
-            confirmed_ids = {
-                tx.id for block in blocks for tx in block.transactions
-            }
-            self._transaction_repository.remove_from_mempool(list(confirmed_ids))
+            invalid_ids = [
+                tx.id
+                for tx in self._transaction_repository.get_mempool()
+                if not self._transaction_validator.validate(tx)
+            ]
+            if invalid_ids:
+                self._transaction_repository.remove_from_mempool(invalid_ids)
 
     async def _handle_get_mempool(self, peer: NodeInfo) -> None:
         mempool = self._transaction_repository.get_mempool()

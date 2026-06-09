@@ -263,7 +263,11 @@ class TCPMessageSender(IMessageSender):
         if length > MAX_FRAME_BYTES:
             raise ValueError(f"trama TCP excede MAX_FRAME_BYTES ({MAX_FRAME_BYTES})")
         raw = await conn.reader.readexactly(length)
-        return self._codec.decode(raw, peer_public_key)
+        return self._codec.decode(
+            raw,
+            peer_public_key,
+            expected_sender_node_id=conn.node_id if conn.handshake_done else None,
+        )
 
     async def _close_connection(self, conn: _PeerConnection) -> None:
         try:

@@ -99,6 +99,7 @@ class MiningService:
         candidate.nonce = result.nonce
         candidate.hash = result.block_hash
 
+        inserted = False
         async with self._chain_lock:
             tip = self._blockchain_repository.get_last_block()
             if tip is None or tip.id != tip_id or tip.hash != tip_hash:
@@ -108,16 +109,19 @@ class MiningService:
             if not self._is_candidate_valid(candidate, tip):
                 return
 
-            self._blockchain_repository.append_block(candidate)
+            if not self._blockchain_repository.append_block(candidate):
+                return
+            inserted = True
             tx_ids = [tx.id for tx in candidate.transactions]
             self._transaction_repository.remove_from_mempool(tx_ids)
 
-        await self._message_sender.broadcast(
-            Message(
-                type=MessageType.NEW_BLOCK,
-                payload=NewBlockPayload(block=block_to_dto(candidate)),
+        if inserted:
+            await self._message_sender.broadcast(
+                Message(
+                    type=MessageType.NEW_BLOCK,
+                    payload=NewBlockPayload(block=block_to_dto(candidate)),
+                )
             )
-        )
 
     def _is_candidate_valid(self, candidate: Block, tip: Block) -> bool:
         if isinstance(self._block_validator, DefaultBlockValidator):
