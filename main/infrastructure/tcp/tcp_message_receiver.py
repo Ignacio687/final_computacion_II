@@ -85,7 +85,7 @@ class TCPMessageReceiver(IMessageReceiver):
                     peer_node_id = hello.node_id
                     peer_public_key = b64_to_bytes(hello.public_key)
                     handshake_done = True
-                    self._message_sender.register_incoming(
+                    await self._message_sender.register_incoming(
                         peer_node_id,
                         peer_host,
                         peer_port,
