@@ -13,6 +13,7 @@ from main.domain.models.node_info import NodeInfo
 from main.domain.models.payloads import HelloPayload
 from main.infrastructure.serialization.canonical import bytes_to_b64
 from main.infrastructure.serialization.message_codec import MessageCodec
+from main.infrastructure.tcp.frame_limits import MAX_FRAME_BYTES
 
 
 def _peer_key(host: str, port: int) -> str:
@@ -58,7 +59,7 @@ class TCPMessageSender(IMessageSender):
     def set_handler(self, handler: MessageHandler) -> None:
         self._handler = handler
 
-    def register_incoming(
+    async def register_incoming(
         self,
         node_id: str,
         host: str,
@@ -259,6 +260,8 @@ class TCPMessageSender(IMessageSender):
     ) -> Message:
         length_bytes = await conn.reader.readexactly(4)
         length = struct.unpack(">I", length_bytes)[0]
+        if length > MAX_FRAME_BYTES:
+            raise ValueError(f"trama TCP excede MAX_FRAME_BYTES ({MAX_FRAME_BYTES})")
         raw = await conn.reader.readexactly(length)
         return self._codec.decode(raw, peer_public_key)
 

@@ -10,6 +10,7 @@ from main.domain.models.node_info import NodeInfo
 from main.domain.models.payloads import HelloPayload
 from main.infrastructure.serialization.canonical import b64_to_bytes, bytes_to_b64
 from main.infrastructure.serialization.message_codec import MessageCodec
+from main.infrastructure.tcp.frame_limits import MAX_FRAME_BYTES
 from main.infrastructure.tcp.tcp_message_sender import TCPMessageSender
 
 
@@ -67,6 +68,10 @@ class TCPMessageReceiver(IMessageReceiver):
             while True:
                 length_bytes = await reader.readexactly(4)
                 length = struct.unpack(">I", length_bytes)[0]
+                if length > MAX_FRAME_BYTES:
+                    raise ValueError(
+                        f"trama TCP excede MAX_FRAME_BYTES ({MAX_FRAME_BYTES})"
+                    )
                 raw = await reader.readexactly(length)
                 message = self._codec.decode(
                     raw,

@@ -6,6 +6,7 @@ import urllib.parse
 from typing import Optional
 
 from main.controller.http_handlers import HTTPHandlers
+from main.infrastructure.http.limits import MAX_POST_BODY_BYTES, MAX_TRANSACTIONS_LIMIT
 
 
 class HTTPServer:
@@ -38,9 +39,13 @@ class HTTPServer:
         try:
             status_code, body = await self._process_request(reader)
             response_body = json.dumps(body, separators=(",", ":")).encode("utf-8")
-            reason = "OK" if status_code == 200 else (
-                "Bad Request" if status_code == 400 else "Not Found"
-            )
+            reason_by_code = {
+                200: "OK",
+                400: "Bad Request",
+                404: "Not Found",
+                413: "Payload Too Large",
+            }
+            reason = reason_by_code.get(status_code, "Error")
             headers = (
                 f"HTTP/1.1 {status_code} {reason}\r\n"
                 f"Content-Type: application/json\r\n"
@@ -97,7 +102,14 @@ class HTTPServer:
 
         body = b""
         if method == "POST":
-            content_length = int(headers.get("content-length", "0"))
+            try:
+                content_length = int(headers.get("content-length", "0"))
+            except ValueError:
+                return 400, {"error": "bad request"}
+            if content_length < 0:
+                return 400, {"error": "bad request"}
+            if content_length > MAX_POST_BODY_BYTES:
+                return 413, {"error": "payload too large"}
             if content_length > 0:
                 body = await reader.readexactly(content_length)
 
@@ -112,7 +124,13 @@ class HTTPServer:
             address = address_list[0] if address_list else None
             limit = 50
             if "limit" in query and query["limit"]:
-                limit = int(query["limit"][0])
+                try:
+                    limit = int(query["limit"][0])
+                except ValueError:
+                    return 400, {"error": "invalid limit"}
+                if limit < 1:
+                    return 400, {"error": "invalid limit"}
+                limit = min(limit, MAX_TRANSACTIONS_LIMIT)
             return 200, await self._handlers.handle_get_transactions(address, limit)
 
         if method == "GET" and path == "/status":

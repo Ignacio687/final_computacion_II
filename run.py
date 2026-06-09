@@ -48,6 +48,12 @@ def _build_node_parser(sub: argparse.ArgumentParser) -> None:
 
 def _build_wallet_parser(sub: argparse.ArgumentParser) -> None:
     sub.add_argument("--node-url", type=str, required=True)
+    sub.add_argument(
+        "--fallback-node-url",
+        type=str,
+        default="",
+        help="URL alternativa del nodo si la principal no responde (p. ej. node3)",
+    )
     sub.add_argument("--keys-dir", type=str, required=True)
     sub.add_argument("--genesis-seed", type=str, default=os.environ.get("HASHCOIN_GENESIS_SEED"),
                      help="semilla del génesis (o env HASHCOIN_GENESIS_SEED)")
@@ -64,9 +70,12 @@ def main() -> int:
     args = parser.parse_args()
 
     if args.command == "node":
+        from main.bootstrap.shared_key import require_shared_key_b64
         from main.config.node_config import NodeConfig
         from main.domain.models.node_info import NodeInfo
         from main.bootstrap.node_bootstrap import create_and_run_node
+
+        shared_key = require_shared_key_b64(args.shared_key)
 
         peers = []
         if args.peers:
@@ -90,7 +99,7 @@ def main() -> int:
             mining_address=args.mining_address,
             private_key_path=args.private_key_path,
             public_key_path=args.public_key_path,
-            shared_key=args.shared_key,
+            shared_key=shared_key,
             reconnect_delay_seconds=args.reconnect_delay_seconds,
             genesis_seed=args.genesis_seed,
             genesis_prefund_accounts=args.genesis_prefund_accounts,
@@ -103,8 +112,14 @@ def main() -> int:
         from main.config.wallet_config import WalletConfig
         from main.bootstrap.wallet_bootstrap import run_wallet
 
+        fallback_urls = tuple(
+            part.strip()
+            for part in args.fallback_node_url.split(",")
+            if part.strip()
+        )
         config = WalletConfig(
             node_url=args.node_url,
+            fallback_node_urls=fallback_urls,
             keys_dir=args.keys_dir,
             generator_mode=args.generator,
             generator_users=args.generator_users,
