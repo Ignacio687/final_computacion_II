@@ -70,12 +70,14 @@ def main() -> int:
     args = parser.parse_args()
 
     if args.command == "node":
+        from main.bootstrap.genesis_seed import require_genesis_seed
         from main.bootstrap.shared_key import require_shared_key_b64
         from main.config.node_config import NodeConfig
         from main.domain.models.node_info import NodeInfo
         from main.bootstrap.node_bootstrap import create_and_run_node
 
         shared_key = require_shared_key_b64(args.shared_key)
+        genesis_seed = require_genesis_seed(args.genesis_seed)
 
         peers = []
         if args.peers:
@@ -101,7 +103,7 @@ def main() -> int:
             public_key_path=args.public_key_path,
             shared_key=shared_key,
             reconnect_delay_seconds=args.reconnect_delay_seconds,
-            genesis_seed=args.genesis_seed,
+            genesis_seed=genesis_seed,
             genesis_prefund_accounts=args.genesis_prefund_accounts,
             genesis_prefund_amount=args.genesis_prefund_amount,
         )

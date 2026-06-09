@@ -111,15 +111,15 @@ cp .env.example .env
 docker compose up --build
 ```
 
-Puertos HTTP expuestos internamente en la red Docker:
+Puertos HTTP publicados al host (y accesibles entre contenedores):
 
-| Servicio | TCP (nodos) | HTTP (billetera) |
-|----------|-------------|------------------|
-| node1    | 8001        | 9081             |
-| node2    | 8002        | 9082             |
-| node3    | 8003        | 9083             |
-| node4    | 8004        | 9084             |
-| node5    | 8005        | 9085             |
+| Servicio | TCP (nodos) | HTTP (host / red Docker) |
+|----------|-------------|--------------------------|
+| node1    | 8001        | 9081                     |
+| node2    | 8002        | 9082                     |
+| node3    | 8003        | 9083                     |
+| node4    | 8004        | 9084                     |
+| node5    | 8005        | 9085                     |
 
 La billetera se conecta a `http://node1:9081` con fallback a `http://node3:9083` y genera
 tráfico periódico para alimentar el mempool de la red.
