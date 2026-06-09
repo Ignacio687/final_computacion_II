@@ -46,7 +46,7 @@ def _validators() -> tuple[
     tx_validator = DefaultTransactionValidator(CryptographyVerifier())
     pow_service = SHA256ProofOfWork()
     block_validator = DefaultBlockValidator(
-        pow_service, tx_validator, DIFFICULTY, MINING_REWARD
+        pow_service, tx_validator, DIFFICULTY, MINING_REWARD, PREFUND_AMOUNT
     )
     chain_verifier = DefaultChainVerifier(block_validator, _genesis_provider())
     return tx_validator, block_validator, chain_verifier, pow_service

@@ -123,7 +123,7 @@ def test_insufficient_balance_rejected():
     assert validator.validate(tx) is False
 
 
-def test_coinbase_and_genesis_skip_signature_checks():
+def test_coinbase_and_genesis_rejected_from_mempool():
     validator = DefaultTransactionValidator(CryptographyVerifier())
     coinbase = Transaction(
         id=coinbase_id(1, "miner" * 8, 50),
@@ -141,5 +141,5 @@ def test_coinbase_and_genesis_skip_signature_checks():
         signature=b"",
         public_key=b"",
     )
-    assert validator.validate(coinbase) is True
-    assert validator.validate(genesis) is True
+    assert validator.validate(coinbase) is False
+    assert validator.validate(genesis) is False

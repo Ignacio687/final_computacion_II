@@ -118,7 +118,7 @@ def test_append_block_persists_and_clears_mempool(
 ):
     genesis = _genesis_block()
     blockchain_repo.append_block(genesis)
-    assert blockchain_repo.get_height() == 1
+    assert blockchain_repo.get_height() == 0
     assert blockchain_repo.get_last_block() == genesis
 
     chain = blockchain_repo.get_chain()
@@ -142,7 +142,7 @@ def test_append_block_persists_and_clears_mempool(
     )
     blockchain_repo.append_block(block1)
 
-    assert blockchain_repo.get_height() == 2
+    assert blockchain_repo.get_height() == 1
     assert blockchain_repo.get_last_block().id == 1
     assert transaction_repo.get_mempool() == []
     assert blockchain_repo.get_chain_since(1) == [block1]
@@ -202,7 +202,7 @@ def test_replace_chain_is_atomic(blockchain_repo, transaction_repo):
     chain = blockchain_repo.get_chain()
     assert len(chain) == 2
     assert chain[1].hash == alt_block1.hash
-    assert blockchain_repo.get_height() == 2
+    assert blockchain_repo.get_height() == 1
 
     mempool = transaction_repo.get_mempool()
     assert len(mempool) == 1

@@ -7,6 +7,7 @@ from main.application.interfaces.block_validator import IBlockValidator
 from main.application.interfaces.proof_of_work import IProofOfWork
 from main.application.interfaces.transaction_validator import ITransactionValidator
 from main.domain.models.block import Block
+from main.infrastructure.serialization.canonical import block_hash
 from main.infrastructure.validation.transaction_validator import (
     COINBASE_SENDER,
     GENESIS_SENDER,
@@ -14,10 +15,12 @@ from main.infrastructure.validation.transaction_validator import (
 )
 
 GENESIS_HEIGHT = 0
+GENESIS_LAST_HASH = "0" * 64
+GENESIS_TIMESTAMP_EPOCH = 0.0
+GENESIS_NONCE = 0
 
 
 def balances_from_chain(chain: List[Block]) -> Dict[str, int]:
-    """Saldo confirmado por dirección tras aplicar todas las tx de la cadena dada."""
     balances: Dict[str, int] = {}
     for block in chain:
         for tx in block.transactions:
@@ -28,26 +31,19 @@ def balances_from_chain(chain: List[Block]) -> Dict[str, int]:
 
 
 class DefaultBlockValidator(IBlockValidator):
-    """Implementación de IBlockValidator.
-
-    Dependencias inyectadas para poder validar el bloque completo:
-    - proof_of_work: recálculo de hash y verificación del PoW.
-    - transaction_validator: validez de cada tx no-coinbase.
-    - expected_difficulty: target esperado de la red (`block.target` debe coincidir).
-    - mining_reward: amount esperado de la única tx coinbase del bloque.
-    """
-
     def __init__(
         self,
         proof_of_work: IProofOfWork,
         transaction_validator: ITransactionValidator,
         expected_difficulty: int,
         mining_reward: int,
+        genesis_prefund_amount: int,
     ) -> None:
         self._proof_of_work = proof_of_work
         self._transaction_validator = transaction_validator
         self._expected_difficulty = expected_difficulty
         self._mining_reward = mining_reward
+        self._genesis_prefund_amount = genesis_prefund_amount
 
     def validate(
         self,
@@ -86,13 +82,33 @@ class DefaultBlockValidator(IBlockValidator):
         return self._validate_mined_block(block, balances)
 
     def _validate_genesis_block(self, block: Block) -> bool:
+        if block.id != GENESIS_HEIGHT:
+            return False
+        if block.last_hash != GENESIS_LAST_HASH:
+            return False
         if block.target != 0:
+            return False
+        if block.nonce != GENESIS_NONCE:
+            return False
+        if block.timestamp.timestamp() != GENESIS_TIMESTAMP_EPOCH:
+            return False
+        tx_ids = [tx.id for tx in block.transactions]
+        expected_hash = block_hash(
+            GENESIS_LAST_HASH,
+            GENESIS_TIMESTAMP_EPOCH,
+            0,
+            GENESIS_NONCE,
+            tx_ids,
+        )
+        if block.hash != expected_hash:
             return False
         if not isinstance(self._transaction_validator, DefaultTransactionValidator):
             return False
         validator = self._transaction_validator
         for index, tx in enumerate(block.transactions):
-            if not validator.validate_genesis_tx(tx, index, tx.amount):
+            if not validator.validate_genesis_tx(
+                tx, index, self._genesis_prefund_amount
+            ):
                 return False
         return True
 

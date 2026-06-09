@@ -10,13 +10,6 @@ from main.infrastructure.validation.block_validator import DefaultBlockValidator
 
 
 class DefaultChainVerifier(IChainVerifier):
-    """Implementación de IChainVerifier (ver doc/protocolo.md §5.4).
-
-    - block_validator: valida cada bloque y su encadenamiento.
-    - genesis_provider: provee el génesis esperado para exigir que `blocks[0]` sea
-      idéntico (mismo id y hash).
-    """
-
     def __init__(
         self,
         block_validator: IBlockValidator,
@@ -44,6 +37,9 @@ class DefaultChainVerifier(IChainVerifier):
             balances[tx.receiver_id] = balances.get(tx.receiver_id, 0) + tx.amount
 
         for index in range(1, len(blocks)):
+            if blocks[index].id != index:
+                return False
+
             previous = blocks[index - 1]
             current = blocks[index]
 

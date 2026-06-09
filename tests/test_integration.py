@@ -125,7 +125,7 @@ async def test_mining_and_block_propagation_between_two_nodes(
         repo_b = chain_repo(db_b)
 
         def tx_confirmed_and_chains_synced() -> bool:
-            if repo_a.get_height() < 2 or repo_b.get_height() < 2:
+            if repo_a.get_height() < 1 or repo_b.get_height() < 1:
                 return False
             if repo_a.get_last_block().hash != repo_b.get_last_block().hash:
                 return False

@@ -19,8 +19,6 @@ GENESIS_SENDER = "GENESIS"
 
 
 class DefaultTransactionValidator(ITransactionValidator):
-    """Implementación de ITransactionValidator; usa IVerifier para la firma."""
-
     def __init__(
         self,
         verifier: IVerifier,
@@ -31,7 +29,7 @@ class DefaultTransactionValidator(ITransactionValidator):
 
     def validate(self, tx: Transaction) -> bool:
         if tx.sender_id in (COINBASE_SENDER, GENESIS_SENDER):
-            return self._validate_special(tx)
+            return False
 
         if not tx.id or not tx.sender_id or not tx.receiver_id:
             return False
@@ -39,27 +37,28 @@ class DefaultTransactionValidator(ITransactionValidator):
             return False
         if tx.amount <= 0:
             return False
-
         if derive_sender_id(tx.public_key) != tx.sender_id:
             return False
 
         firmable = transaction_firmable_bytes(tx.sender_id, tx.receiver_id, tx.amount)
         if not self._verifier.verify(firmable, tx.signature, tx.public_key):
             return False
-
         if transaction_id(firmable, tx.signature) != tx.id:
             return False
 
         if self._transaction_repository is not None:
             if self._transaction_repository.exists_in_mempool_or_chain(tx.id):
                 return False
-            if self._transaction_repository.get_balance(tx.sender_id) < tx.amount:
+            available = self._transaction_repository.get_balance(tx.sender_id)
+            for pending in self._transaction_repository.get_mempool():
+                if pending.sender_id == tx.sender_id and pending.id != tx.id:
+                    available -= pending.amount
+            if available < tx.amount:
                 return False
 
         return True
 
     def validate_crypto(self, tx: Transaction) -> bool:
-        """Valida firma, id y reglas estructurales sin saldo ni duplicados (bloques)."""
         if tx.sender_id in (COINBASE_SENDER, GENESIS_SENDER):
             return self._validate_special(tx)
 
