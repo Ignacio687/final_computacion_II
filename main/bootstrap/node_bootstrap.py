@@ -83,6 +83,7 @@ async def create_and_run_node(config: NodeConfig) -> None:
         config.tcp_port,
         message_sender,
         signer.get_public_key(),
+        config.peers,
     )
 
     propagation_service = PropagationService(

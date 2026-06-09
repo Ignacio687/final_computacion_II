@@ -2,7 +2,7 @@
 
 import asyncio
 import struct
-from typing import Optional
+from typing import List, Optional
 
 from main.application.interfaces.message_receiver import IMessageReceiver, MessageHandler
 from main.domain.models.message import Message, MessageType
@@ -26,6 +26,7 @@ class TCPMessageReceiver(IMessageReceiver):
         listen_port: int,
         message_sender: TCPMessageSender,
         public_key_der: bytes,
+        allowed_peers: List[NodeInfo],
     ) -> None:
         self._bind_host = bind_host
         self._port = port
@@ -34,8 +35,19 @@ class TCPMessageReceiver(IMessageReceiver):
         self._listen_port = listen_port
         self._message_sender = message_sender
         self._public_key_b64 = bytes_to_b64(public_key_der)
+        self._allowed_peers = allowed_peers
         self._handler: MessageHandler | None = None
         self._server: Optional[asyncio.Server] = None
+
+    def _is_peer_allowed(
+        self, remote_host: str, remote_port: int, hello: HelloPayload
+    ) -> bool:
+        for peer in self._allowed_peers:
+            if peer.node_id is not None and peer.node_id == hello.node_id:
+                return True
+            if peer.host == remote_host and peer.port in (remote_port, hello.listen_port):
+                return True
+        return False
 
     def set_handler(self, handler: MessageHandler) -> None:
         self._handler = handler
@@ -82,6 +94,8 @@ class TCPMessageReceiver(IMessageReceiver):
                 if message.type == MessageType.HELLO:
                     hello = message.payload
                     if not isinstance(hello, HelloPayload):
+                        break
+                    if not self._is_peer_allowed(peer_host, peer_port, hello):
                         break
                     peer_node_id = hello.node_id
                     peer_public_key = b64_to_bytes(hello.public_key)
