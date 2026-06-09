@@ -1,5 +1,8 @@
 """Adaptador: verificación de firmas con la librería cryptography."""
 
+from cryptography.exceptions import InvalidSignature
+from cryptography.hazmat.primitives import serialization
+
 from main.application.interfaces.verifier import IVerifier
 
 
@@ -10,4 +13,11 @@ class CryptographyVerifier(IVerifier):
     False si `verify` lanza `InvalidSignature`."""
 
     def verify(self, payload: bytes, signature: bytes, public_key: bytes) -> bool:
-        raise NotImplementedError
+        try:
+            key = serialization.load_der_public_key(public_key)
+            key.verify(signature, payload)
+            return True
+        except InvalidSignature:
+            return False
+        except (ValueError, TypeError):
+            return False

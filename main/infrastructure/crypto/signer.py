@@ -1,5 +1,8 @@
 """Adaptador: firma de datos con la librería cryptography."""
 
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+
 from main.application.interfaces.signer import ISigner
 
 
@@ -32,9 +35,26 @@ class CryptographySigner(ISigner):
     def __init__(self, private_key_path: str, public_key_path: str) -> None:
         self._private_key_path = private_key_path
         self._public_key_path = public_key_path
+        self._private_key = self._load_private_key()
+        self._public_key_der = self._load_public_key_der()
+
+    def _load_private_key(self) -> Ed25519PrivateKey:
+        with open(self._private_key_path, "rb") as key_file:
+            key = serialization.load_pem_private_key(key_file.read(), password=None)
+        if not isinstance(key, Ed25519PrivateKey):
+            raise ValueError("Se esperaba una clave privada Ed25519")
+        return key
+
+    def _load_public_key_der(self) -> bytes:
+        with open(self._public_key_path, "rb") as key_file:
+            public_key = serialization.load_pem_public_key(key_file.read())
+        return public_key.public_bytes(
+            encoding=serialization.Encoding.DER,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo,
+        )
 
     def sign(self, payload: bytes) -> bytes:
-        raise NotImplementedError
+        return self._private_key.sign(payload)
 
     def get_public_key(self) -> bytes:
-        raise NotImplementedError
+        return self._public_key_der
