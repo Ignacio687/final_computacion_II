@@ -15,6 +15,10 @@ from main.domain.models.payloads import (
     NewBlockPayload,
     NewTxPayload,
 )
+from main.infrastructure.validation.block_validator import (
+    DefaultBlockValidator,
+    balances_from_chain,
+)
 from main.infrastructure.validation.chain_verification_dispatcher import (
     ChainVerificationDispatcher,
 )
@@ -85,9 +89,20 @@ class PropagationService:
             return
 
         previous_hash = last_block.hash
-        if block.id == last_block.id + 1 and self._block_validator.validate(
-            block, previous_hash
-        ):
+        block_valid = False
+        if block.id == last_block.id + 1:
+            if isinstance(self._block_validator, DefaultBlockValidator):
+                balances = balances_from_chain(self._blockchain_repository.get_chain())
+                block_valid = self._block_validator.validate_with_balances(
+                    block,
+                    previous_hash,
+                    balances,
+                    previous_timestamp=last_block.timestamp,
+                )
+            else:
+                block_valid = self._block_validator.validate(block, previous_hash)
+
+        if block_valid:
             self._blockchain_repository.append_block(block)
             tx_ids = [tx.id for tx in block.transactions]
             self._transaction_repository.remove_from_mempool(tx_ids)

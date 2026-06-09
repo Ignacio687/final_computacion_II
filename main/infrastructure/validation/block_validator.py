@@ -1,6 +1,7 @@
 """Adaptador: validación de bloques (hash, PoW, transacciones). Ver doc/protocolo.md §5.3."""
 
-from typing import Dict, Optional
+from datetime import datetime
+from typing import Dict, List, Optional
 
 from main.application.interfaces.block_validator import IBlockValidator
 from main.application.interfaces.proof_of_work import IProofOfWork
@@ -8,10 +9,22 @@ from main.application.interfaces.transaction_validator import ITransactionValida
 from main.domain.models.block import Block
 from main.infrastructure.validation.transaction_validator import (
     COINBASE_SENDER,
+    GENESIS_SENDER,
     DefaultTransactionValidator,
 )
 
 GENESIS_HEIGHT = 0
+
+
+def balances_from_chain(chain: List[Block]) -> Dict[str, int]:
+    """Saldo confirmado por dirección tras aplicar todas las tx de la cadena dada."""
+    balances: Dict[str, int] = {}
+    for block in chain:
+        for tx in block.transactions:
+            if tx.sender_id not in (COINBASE_SENDER, GENESIS_SENDER):
+                balances[tx.sender_id] = balances.get(tx.sender_id, 0) - tx.amount
+            balances[tx.receiver_id] = balances.get(tx.receiver_id, 0) + tx.amount
+    return balances
 
 
 class DefaultBlockValidator(IBlockValidator):
@@ -36,20 +49,35 @@ class DefaultBlockValidator(IBlockValidator):
         self._expected_difficulty = expected_difficulty
         self._mining_reward = mining_reward
 
-    def validate(self, block: Block, previous_hash: str) -> bool:
-        return self.validate_with_balances(block, previous_hash, balances=None)
+    def validate(
+        self,
+        block: Block,
+        previous_hash: str,
+        *,
+        previous_timestamp: Optional[datetime] = None,
+    ) -> bool:
+        return self.validate_with_balances(
+            block, previous_hash, balances=None, previous_timestamp=previous_timestamp
+        )
 
     def validate_with_balances(
         self,
         block: Block,
         previous_hash: str,
         balances: Optional[Dict[str, int]],
+        previous_timestamp: Optional[datetime] = None,
     ) -> bool:
         if block.last_hash != previous_hash:
             return False
         if block.target != self._expected_difficulty and block.id != GENESIS_HEIGHT:
             return False
         if block.id != GENESIS_HEIGHT and not self._proof_of_work.verify(block):
+            return False
+        if (
+            block.id != GENESIS_HEIGHT
+            and previous_timestamp is not None
+            and block.timestamp <= previous_timestamp
+        ):
             return False
 
         if block.id == GENESIS_HEIGHT:
@@ -103,7 +131,7 @@ class DefaultBlockValidator(IBlockValidator):
                     return False
                 balances[tx.sender_id] = available - tx.amount
                 balances[tx.receiver_id] = balances.get(tx.receiver_id, 0) + tx.amount
-            elif not validator.validate(tx):
+            elif not validator.validate_crypto(tx):
                 return False
 
         return True

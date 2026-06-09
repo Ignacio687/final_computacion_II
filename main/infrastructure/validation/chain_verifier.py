@@ -49,16 +49,20 @@ class DefaultChainVerifier(IChainVerifier):
 
             if current.last_hash != previous.hash:
                 return False
-            if current.timestamp <= previous.timestamp:
-                return False
 
             if isinstance(self._block_validator, DefaultBlockValidator):
                 if not self._block_validator.validate_with_balances(
-                    current, previous.hash, balances
+                    current,
+                    previous.hash,
+                    balances,
+                    previous_timestamp=previous.timestamp,
                 ):
                     return False
-            elif not self._block_validator.validate(current, previous.hash):
-                return False
+            else:
+                if current.timestamp <= previous.timestamp:
+                    return False
+                if not self._block_validator.validate(current, previous.hash):
+                    return False
 
             for tx in current.transactions:
                 if tx.id in seen_tx_ids:
