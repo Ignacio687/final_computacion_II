@@ -4,6 +4,7 @@ import asyncio
 from concurrent.futures import Executor
 from datetime import datetime, timezone
 
+from main.application.interfaces.block_validator import IBlockValidator
 from main.application.interfaces.blockchain_repository import IBlockchainRepository
 from main.application.interfaces.message_sender import IMessageSender
 from main.application.interfaces.proof_of_work import IProofOfWork
@@ -13,6 +14,10 @@ from main.domain.models.message import Message, MessageType
 from main.domain.models.payloads import NewBlockPayload
 from main.domain.models.transaction import Transaction
 from main.infrastructure.serialization.canonical import coinbase_id
+from main.infrastructure.validation.block_validator import (
+    DefaultBlockValidator,
+    balances_from_chain,
+)
 from main.repository.dto.mappers import block_to_dto
 
 
@@ -24,6 +29,7 @@ class MiningService:
         blockchain_repository: IBlockchainRepository,
         transaction_repository: ITransactionRepository,
         proof_of_work: IProofOfWork,
+        block_validator: IBlockValidator,
         message_sender: IMessageSender,
         pool: Executor,
         difficulty: int,
@@ -35,6 +41,7 @@ class MiningService:
         self._blockchain_repository = blockchain_repository
         self._transaction_repository = transaction_repository
         self._proof_of_work = proof_of_work
+        self._block_validator = block_validator
         self._message_sender = message_sender
         self._pool = pool
         self._difficulty = difficulty
@@ -62,7 +69,10 @@ class MiningService:
         if last_block is None:
             return
 
-        block_id = last_block.id + 1
+        tip_id = last_block.id
+        tip_hash = last_block.hash
+        tip_timestamp = last_block.timestamp
+        block_id = tip_id + 1
         coinbase = Transaction(
             id=coinbase_id(block_id, self._mining_address, self._mining_reward),
             sender_id="COINBASE",
@@ -73,7 +83,7 @@ class MiningService:
         )
         candidate = Block(
             id=block_id,
-            last_hash=last_block.hash,
+            last_hash=tip_hash,
             hash="",
             timestamp=datetime.now(timezone.utc),
             target=self._difficulty,
@@ -86,6 +96,14 @@ class MiningService:
         candidate.nonce = result.nonce
         candidate.hash = result.block_hash
 
+        tip = self._blockchain_repository.get_last_block()
+        if tip is None or tip.id != tip_id or tip.hash != tip_hash:
+            return
+        if candidate.id != tip.id + 1 or candidate.last_hash != tip.hash:
+            return
+        if not self._is_candidate_valid(candidate, tip):
+            return
+
         self._blockchain_repository.append_block(candidate)
         tx_ids = [tx.id for tx in candidate.transactions]
         self._transaction_repository.remove_from_mempool(tx_ids)
@@ -95,6 +113,17 @@ class MiningService:
                 payload=NewBlockPayload(block=block_to_dto(candidate)),
             )
         )
+
+    def _is_candidate_valid(self, candidate: Block, tip: Block) -> bool:
+        if isinstance(self._block_validator, DefaultBlockValidator):
+            balances = balances_from_chain(self._blockchain_repository.get_chain())
+            return self._block_validator.validate_with_balances(
+                candidate,
+                tip.hash,
+                balances,
+                previous_timestamp=tip.timestamp,
+            )
+        return self._block_validator.validate(candidate, tip.hash)
 
     async def start_loop(self) -> None:
         self._running = True

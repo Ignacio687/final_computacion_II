@@ -95,6 +95,7 @@ async def create_and_run_node(config: NodeConfig) -> None:
         blockchain_repository,
         transaction_repository,
         proof_of_work,
+        block_validator,
         message_sender,
         pool,
         config.difficulty,
