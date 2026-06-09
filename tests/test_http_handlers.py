@@ -11,7 +11,7 @@ from main.controller.http_handlers import HTTPHandlers
 from main.infrastructure.crypto.verifier import CryptographyVerifier
 from main.infrastructure.genesis.seed_genesis_provider import SeedGenesisProvider
 from main.infrastructure.http.http_server import HTTPServer
-from main.infrastructure.http.limits import MAX_POST_BODY_BYTES
+from main.infrastructure.http.limits import MAX_HEADER_BYTES, MAX_POST_BODY_BYTES
 from main.infrastructure.persistence.sqlite.blockchain_repository import (
     SQLiteBlockchainRepository,
 )
@@ -188,3 +188,68 @@ async def test_post_body_over_64kib_returns_413(http_server):
     )
     assert status == 413
     assert body == {"error": "payload too large"}
+
+
+@pytest.mark.asyncio
+async def test_get_balance_success(http_server):
+    port, _ = http_server
+    accounts = KeyStore.derive_genesis_accounts(GENESIS_SEED, GENESIS_PREFUND_ACCOUNTS)
+    address = accounts[0].id
+    status, body = await _raw_http(port, "GET", f"/balance?address={address}")
+    assert status == 200
+    assert body["address"] == address
+    assert body["balance"] == GENESIS_PREFUND_AMOUNT
+
+
+@pytest.mark.asyncio
+async def test_get_status_success(http_server):
+    port, _ = http_server
+    status, body = await _raw_http(port, "GET", "/status")
+    assert status == 200
+    assert body["node_id"] == "test-node"
+    assert body["height"] == 0
+    assert body["difficulty"] == 1
+    assert body["mempool_size"] == 0
+    assert body["peers_connected"] == 0
+
+
+@pytest.mark.asyncio
+async def test_get_transactions_success(http_server):
+    port, _ = http_server
+    status, body = await _raw_http(port, "GET", "/transactions?limit=10")
+    assert status == 200
+    assert isinstance(body, list)
+    assert len(body) >= 1
+    assert all("id" in item and "amount" in item for item in body)
+
+
+@pytest.mark.asyncio
+async def test_oversized_http_headers_returns_400(http_server):
+    port, _ = http_server
+    reader, writer = await asyncio.open_connection("127.0.0.1", port)
+    try:
+        padding = "X-Extra: " + ("a" * MAX_HEADER_BYTES)
+        request = (
+            f"GET /status HTTP/1.1\r\n"
+            f"Host: 127.0.0.1:{port}\r\n"
+            f"{padding}\r\n"
+            f"\r\n"
+        ).encode("ascii")
+        writer.write(request)
+        await writer.drain()
+        status_line = await reader.readline()
+        status = int(status_line.decode("ascii").split()[1])
+        while True:
+            line = await reader.readline()
+            if line in (b"\r\n", b""):
+                break
+        raw_body = await reader.read()
+        body = json.loads(raw_body.decode("utf-8")) if raw_body else {}
+        assert status == 400
+        assert body == {"error": "bad request"}
+    finally:
+        writer.close()
+        try:
+            await writer.wait_closed()
+        except Exception:
+            pass

@@ -19,12 +19,13 @@ class InMemoryTransactionRepository:
     def __init__(self, balances: dict[str, int] | None = None) -> None:
         self._balances = dict(balances or {})
         self._known_ids: set[str] = set()
+        self._mempool: list[Transaction] = []
 
     def add_to_mempool(self, tx: Transaction) -> None:
-        raise NotImplementedError
+        self._mempool.append(tx)
 
     def get_mempool(self) -> list[Transaction]:
-        return []
+        return list(self._mempool)
 
     def remove_from_mempool(self, tx_ids: list[str]) -> None:
         pass
@@ -142,6 +143,19 @@ def test_insufficient_balance_rejected():
     validator = DefaultTransactionValidator(CryptographyVerifier(), repo)
     tx = _signed_tx(private_key, "b" * 64, 100)
     assert validator.validate(tx) is False
+
+
+def test_second_tx_same_sender_rejected_when_mempool_has_pending():
+    private_key = Ed25519PrivateKey.generate()
+    public_key_der = _public_key_der(private_key)
+    sender_id = derive_sender_id(public_key_der)
+    repo = InMemoryTransactionRepository({sender_id: 1000})
+    validator = DefaultTransactionValidator(CryptographyVerifier(), repo)
+    tx1 = _signed_tx(private_key, "b" * 64, 800)
+    tx2 = _signed_tx(private_key, "c" * 64, 300)
+    repo.add_to_mempool(tx1)
+    assert validator.validate(tx1) is True
+    assert validator.validate(tx2) is False
 
 
 def test_coinbase_and_genesis_rejected_from_mempool():
