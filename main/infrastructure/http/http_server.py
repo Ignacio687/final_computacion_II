@@ -6,7 +6,11 @@ import urllib.parse
 from typing import Optional
 
 from main.controller.http_handlers import HTTPHandlers
-from main.infrastructure.http.limits import MAX_POST_BODY_BYTES, MAX_TRANSACTIONS_LIMIT
+from main.infrastructure.http.limits import (
+    MAX_HEADER_BYTES,
+    MAX_POST_BODY_BYTES,
+    MAX_TRANSACTIONS_LIMIT,
+)
 
 
 class HTTPServer:
@@ -75,10 +79,25 @@ class HTTPServer:
             except Exception:
                 pass
 
+    async def _read_headers(self, reader: asyncio.StreamReader) -> bytes:
+        buffer = b""
+        while True:
+            if len(buffer) >= MAX_HEADER_BYTES:
+                raise ValueError("cabeceras HTTP exceden MAX_HEADER_BYTES")
+            chunk = await reader.read(1)
+            if not chunk:
+                raise asyncio.IncompleteReadError(buffer, 1)
+            buffer += chunk
+            if buffer.endswith(b"\r\n\r\n"):
+                return buffer
+
     async def _process_request(
         self, reader: asyncio.StreamReader
     ) -> tuple[int, object]:
-        header_data = await reader.readuntil(b"\r\n\r\n")
+        try:
+            header_data = await self._read_headers(reader)
+        except ValueError:
+            return 400, {"error": "bad request"}
         header_text = header_data.decode("utf-8", errors="replace")
         lines = header_text.split("\r\n")
         if not lines:

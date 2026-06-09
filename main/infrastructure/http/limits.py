@@ -1,4 +1,5 @@
 """Límites del servidor HTTP del nodo."""
 
+MAX_HEADER_BYTES = 16 * 1024  # 16 KiB
 MAX_POST_BODY_BYTES = 64 * 1024  # 64 KiB
 MAX_TRANSACTIONS_LIMIT = 1000

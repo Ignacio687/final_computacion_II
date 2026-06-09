@@ -19,6 +19,9 @@ class _VerificationTask:
     loop: asyncio.AbstractEventLoop
 
 
+_VERIFY_QUEUE_MAXSIZE = 32
+
+
 class ChainVerificationDispatcher:
     def __init__(self, chain_verifier: IChainVerifier, workers: int = 1) -> None:
         self._chain_verifier = chain_verifier
@@ -28,7 +31,7 @@ class ChainVerificationDispatcher:
         self._threads: List[threading.Thread] = []
 
     def start(self) -> None:
-        self._task_queue = queue.Queue()
+        self._task_queue = queue.Queue(maxsize=_VERIFY_QUEUE_MAXSIZE)
         self._stop_event.clear()
         self._threads = []
         for _ in range(self._workers):
@@ -62,7 +65,10 @@ class ChainVerificationDispatcher:
         loop = asyncio.get_running_loop()
         future: asyncio.Future = loop.create_future()
         task = _VerificationTask(blocks=blocks, future=future, loop=loop)
-        self._task_queue.put(task)
+        try:
+            self._task_queue.put_nowait(task)
+        except queue.Full:
+            return False
         try:
             return await future
         except asyncio.CancelledError:
