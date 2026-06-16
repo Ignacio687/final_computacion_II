@@ -42,6 +42,12 @@ class InMemoryTransactionRepository:
     def get_recent_transactions(self, limit: int) -> list[Transaction]:
         return []
 
+    def get_total_supply(self) -> int:
+        return sum(self._balances.values())
+
+    def get_active_accounts(self, limit: int) -> list:
+        return []
+
     def mark_known(self, tx_id: str) -> None:
         self._known_ids.add(tx_id)
 

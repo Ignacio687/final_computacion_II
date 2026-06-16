@@ -3,6 +3,7 @@
 from abc import ABC, abstractmethod
 from typing import List
 
+from main.domain.models.active_account import ActiveAccount
 from main.domain.models.transaction import Transaction
 
 
@@ -61,4 +62,9 @@ class ITransactionRepository(ABC):
     @abstractmethod
     def get_total_supply(self) -> int:
         """Moneda en circulación confirmada (emisión génesis + coinbase, sin doble conteo)."""
+        ...
+
+    @abstractmethod
+    def get_active_accounts(self, limit: int) -> List[ActiveAccount]:
+        """Direcciones con última tx confirmada más reciente, con saldo actual."""
         ...

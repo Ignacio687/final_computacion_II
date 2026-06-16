@@ -7,9 +7,11 @@ from typing import Optional
 
 from main.controller.http_handlers import HTTPHandlers
 from main.infrastructure.http.limits import (
+    MAX_ACCOUNTS_LIMIT,
     MAX_HEADER_BYTES,
     MAX_POST_BODY_BYTES,
     MAX_TRANSACTIONS_LIMIT,
+    STATUS_ACCOUNTS_DEFAULT,
 )
 from main.infrastructure.logging.node_logger import get_logger, trunc
 from main.infrastructure.net.dual_stack import listen_label, start_stream_server
@@ -177,6 +179,23 @@ class HTTPServer:
                 result.get("height"),
                 result.get("peers_connected"),
             )
+            return 200, result
+
+        if method == "GET" and path == "/accounts":
+            limit_list = query.get("limit")
+            limit = STATUS_ACCOUNTS_DEFAULT
+            if limit_list and limit_list[0]:
+                try:
+                    limit = int(limit_list[0])
+                except ValueError:
+                    logger.info("http: GET /accounts -> 400 (invalid limit)")
+                    return 400, {"error": "invalid limit"}
+                if limit < 1:
+                    logger.info("http: GET /accounts -> 400 (invalid limit)")
+                    return 400, {"error": "invalid limit"}
+                limit = min(limit, MAX_ACCOUNTS_LIMIT)
+            result = await self._handlers.handle_get_accounts(limit)
+            logger.info("http: GET /accounts limit=%d -> 200 (%d)", limit, len(result))
             return 200, result
 
         if method == "POST" and path == "/tx":

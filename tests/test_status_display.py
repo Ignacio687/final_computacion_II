@@ -1,15 +1,10 @@
-from types import SimpleNamespace
-
 from main.wallet.status_display import (
-    collect_status_accounts,
+    STATUS_ACCOUNTS_LIMIT,
+    build_status_account_rows,
     format_status_output,
     parse_status_args,
     truncate_address,
 )
-
-
-def _account(address: str):
-    return SimpleNamespace(id=address)
 
 
 def test_truncate_address_short_unchanged():
@@ -22,41 +17,19 @@ def test_truncate_address_long():
     assert truncate_address(addr) == f"{'a' * 8}...{'b' * 8}"
 
 
-def test_collect_status_accounts_genesis_and_local():
-    genesis = [_account("genesis-address-1"), _account("genesis-address-2")]
-    local = [_account("local-address-1")]
-
-    rows = collect_status_accounts(
-        local,
-        genesis,
-        balance_lookup=lambda address: {"genesis-address-1": 100, "local-address-1": 5}.get(
-            address, 0
-        ),
+def test_build_status_account_rows_uses_aliases():
+    active = [
+        {"address": "genesis-address-1", "balance": 100, "last_block_id": 5},
+        {"address": "other-address-2", "balance": 50, "last_block_id": 10},
+    ]
+    rows = build_status_account_rows(
+        active,
+        alias_for_address={"genesis-address-1": "genesis-0"},
     )
-
-    assert [row.alias for row in rows] == ["genesis-0", "genesis-1", "local-ad"]
-    assert rows[0].balance == 100
-    assert rows[2].balance == 5
-
-
-def test_collect_status_accounts_deduplicates_genesis_in_keys_dir():
-    shared = _account("shared-address")
-    rows = collect_status_accounts(
-        [shared],
-        [shared],
-        balance_lookup=lambda _: 42,
-    )
-    assert len(rows) == 1
     assert rows[0].alias == "genesis-0"
-
-
-def test_collect_status_accounts_hides_zero_local_by_default():
-    rows = collect_status_accounts(
-        [_account("empty-local"), _account("funded-local")],
-        balance_lookup=lambda address: 99 if address == "funded-local" else 0,
-    )
-    assert len(rows) == 1
-    assert rows[0].address == "funded-local"
+    assert rows[0].balance == 100
+    assert rows[0].last_block_id == 5
+    assert rows[1].alias == "other-ad"
 
 
 def test_format_status_output_includes_node_and_accounts():
@@ -68,23 +41,33 @@ def test_format_status_output_includes_node_and_accounts():
         "peers_connected": 2,
         "total_supply": 5000,
     }
-    accounts = collect_status_accounts(
-        [_account("abcd1234efgh5678ijkl9012mnop3456")],
-        balance_lookup=lambda _: 50,
+    accounts = build_status_account_rows(
+        [
+            {
+                "address": "abcd1234efgh5678ijkl9012mnop3456",
+                "balance": 50,
+                "last_block_id": 3,
+            }
+        ]
     )
     output = format_status_output(status, accounts, live=True, interval_seconds=5)
 
     assert "node_id=node-a height=3" in output
-    assert "mempool_size=1 peers_connected=2" in output
+    assert "top 1 por última actividad" in output
     assert "abcd1234...mnop3456" in output
     assert "balance=50" in output
+    assert "blk=3" in output
     assert "total_supply (red)=5000" in output
     assert "Actualizando cada 5s" in output
 
 
 def test_format_status_output_empty_accounts():
     output = format_status_output({"total_supply": 5000}, [], live=False)
-    assert "sin cuentas con saldo" in output
+    assert "sin cuentas confirmadas" in output
+
+
+def test_status_accounts_limit_default():
+    assert STATUS_ACCOUNTS_LIMIT == 20
 
 
 def test_parse_status_args_defaults_to_live():

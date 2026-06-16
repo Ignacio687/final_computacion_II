@@ -31,6 +31,17 @@ class HTTPHandlers:
     async def handle_get_status(self) -> dict:
         return self._wallet_query.get_status()
 
+    async def handle_get_accounts(self, limit: int) -> list:
+        accounts = self._wallet_query.get_active_accounts(limit)
+        return [
+            {
+                "address": account.address,
+                "balance": account.balance,
+                "last_block_id": account.last_block_id,
+            }
+            for account in accounts
+        ]
+
     async def handle_post_tx(self, body: bytes) -> tuple[int, dict]:
         try:
             data = json.loads(body.decode("utf-8"))

@@ -15,7 +15,8 @@ from main.wallet.key_store import KeyStore
 from main.wallet.tx_builder import build_signed_transaction
 from main.wallet.status_display import (
     ANSI_CLEAR_SCREEN,
-    collect_status_accounts,
+    STATUS_ACCOUNTS_LIMIT,
+    build_status_account_rows,
     format_status_output,
     parse_status_args,
 )
@@ -152,11 +153,19 @@ class WalletConsole:
             self._genesis_seed, self._genesis_prefund_accounts
         )
 
+    def _status_aliases(self) -> dict[str, str]:
+        aliases: dict[str, str] = {}
+        for index, account in enumerate(self._genesis_accounts()):
+            aliases[account.id] = f"genesis-{index}"
+        for account in self._key_store.load_accounts():
+            aliases.setdefault(account.id, account.id[:8])
+        return aliases
+
     def _status_account_rows(self):
-        return collect_status_accounts(
-            self._key_store.load_accounts(),
-            self._genesis_accounts(),
-            balance_lookup=self._client.get_balance,
+        active = self._client.get_active_accounts(STATUS_ACCOUNTS_LIMIT)
+        return build_status_account_rows(
+            active,
+            alias_for_address=self._status_aliases(),
         )
 
     def _print_status_snapshot(

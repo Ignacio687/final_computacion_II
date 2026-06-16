@@ -19,6 +19,7 @@ class WalletClient:
         GET  /balance?address=<addr>
         GET  /transactions?address=<addr|optional>&limit=<n>
         GET  /status
+        GET  /accounts?limit=<n>
         POST /tx   (cuerpo JSON con la TransactionDTO firmada)
 
     `node_url` es la URL base (http://host:port), sin slash final.
@@ -54,6 +55,13 @@ class WalletClient:
         data = self._request("GET", "/status")
         if not isinstance(data, dict):
             raise ValueError("La respuesta de /status debe ser un objeto JSON")
+        return data
+
+    def get_active_accounts(self, limit: int = 20) -> list[dict]:
+        query = urllib.parse.urlencode({"limit": str(limit)})
+        data = self._request("GET", f"/accounts?{query}")
+        if not isinstance(data, list):
+            raise ValueError("La respuesta de /accounts debe ser una lista")
         return data
 
     def submit_transaction(self, tx: Transaction) -> bool:

@@ -5,6 +5,7 @@ from typing import List
 from main.application.interfaces.blockchain_repository import IBlockchainRepository
 from main.application.interfaces.message_sender import IMessageSender
 from main.application.interfaces.transaction_repository import ITransactionRepository
+from main.domain.models.active_account import ActiveAccount
 from main.application.interfaces.wallet_query import IWalletQuery
 from main.domain.models.transaction import Transaction
 
@@ -45,3 +46,6 @@ class WalletQueryService(IWalletQuery):
             "peers_connected": self._message_sender.connected_count(),
             "total_supply": self._transaction_repository.get_total_supply(),
         }
+
+    def get_active_accounts(self, limit: int) -> list[ActiveAccount]:
+        return self._transaction_repository.get_active_accounts(limit)

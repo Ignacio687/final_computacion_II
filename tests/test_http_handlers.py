@@ -215,6 +215,17 @@ async def test_get_status_success(http_server):
 
 
 @pytest.mark.asyncio
+async def test_get_accounts_success(http_server):
+    port, _ = http_server
+    status, body = await _raw_http(port, "GET", "/accounts?limit=3")
+    assert status == 200
+    assert isinstance(body, list)
+    assert len(body) <= 3
+    if body:
+        assert {"address", "balance", "last_block_id"} <= set(body[0].keys())
+
+
+@pytest.mark.asyncio
 async def test_get_transactions_success(http_server):
     port, _ = http_server
     status, body = await _raw_http(port, "GET", "/transactions?limit=10")

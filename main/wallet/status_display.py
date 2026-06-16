@@ -1,7 +1,9 @@
-"""Formateo del comando `status` de la billetera (nodo + cuentas locales)."""
+"""Formateo del comando `status` de la billetera (nodo + cuentas activas)."""
 
 from dataclasses import dataclass
-from typing import Callable, Iterable, Protocol
+from typing import Mapping, Protocol
+
+STATUS_ACCOUNTS_LIMIT = 20
 
 
 class BalanceLookup(Protocol):
@@ -13,6 +15,7 @@ class StatusAccountRow:
     alias: str
     address: str
     balance: int
+    last_block_id: int | None = None
 
 
 def truncate_address(address: str, head: int = 8, tail: int = 8) -> str:
@@ -21,48 +24,24 @@ def truncate_address(address: str, head: int = 8, tail: int = 8) -> str:
     return f"{address[:head]}...{address[-tail:]}"
 
 
-def collect_status_accounts(
-    local_accounts: Iterable[object],
-    genesis_accounts: Iterable[object] | None = None,
-    balance_lookup: BalanceLookup | None = None,
+def build_status_account_rows(
+    active_accounts: list[dict],
     *,
-    hide_zero_local: bool = True,
+    alias_for_address: Mapping[str, str] | None = None,
 ) -> list[StatusAccountRow]:
-    """Combina cuentas de keys_dir y génesis (sin duplicar por dirección)."""
+    """Convierte respuesta GET /accounts en filas para mostrar."""
+    aliases = alias_for_address or {}
     rows: list[StatusAccountRow] = []
-    seen: set[str] = set()
-
-    if genesis_accounts:
-        for index, account in enumerate(genesis_accounts):
-            address = account.id
-            if address in seen:
-                continue
-            seen.add(address)
-            balance = balance_lookup(address) if balance_lookup else 0
-            rows.append(
-                StatusAccountRow(
-                    alias=f"genesis-{index}",
-                    address=address,
-                    balance=balance,
-                )
-            )
-
-    for account in local_accounts:
-        address = account.id
-        if address in seen:
-            continue
-        balance = balance_lookup(address) if balance_lookup else 0
-        if hide_zero_local and balance <= 0:
-            continue
-        seen.add(address)
+    for item in active_accounts:
+        address = item["address"]
         rows.append(
             StatusAccountRow(
-                alias=address[:8],
+                alias=aliases.get(address, address[:8]),
                 address=address,
-                balance=balance,
+                balance=int(item["balance"]),
+                last_block_id=int(item["last_block_id"]),
             )
         )
-
     return rows
 
 
@@ -74,9 +53,6 @@ def format_status_output(
     interval_seconds: float | None = None,
 ) -> str:
     shown_total = sum(row.balance for row in accounts)
-    genesis_total = sum(
-        row.balance for row in accounts if row.alias.startswith("genesis-")
-    )
     network_total = status.get("total_supply")
     lines = [
         "=== HashCoin wallet status ===",
@@ -93,28 +69,28 @@ def format_status_output(
     lines.extend(
         [
             "",
-            "Cuentas:",
+            f"Cuentas (top {len(accounts)} por última actividad en cadena):",
         ]
     )
     if not accounts:
-        lines.append("  (sin cuentas con saldo en esta vista)")
+        lines.append("  (sin cuentas confirmadas)")
     else:
         alias_width = max(len(row.alias) for row in accounts)
         for row in accounts:
+            block_hint = (
+                f"  blk={row.last_block_id}" if row.last_block_id is not None else ""
+            )
             lines.append(
                 f"  {row.alias:<{alias_width}}  "
                 f"{truncate_address(row.address):<22}  "
-                f"balance={row.balance}"
+                f"balance={row.balance}{block_hint}"
             )
     lines.append("")
-    lines.append(
-        f"Suma mostrada: {shown_total}  "
-        f"(génesis: {genesis_total})"
-    )
+    lines.append(f"Suma mostrada: {shown_total}")
     if network_total is not None and shown_total < network_total:
         lines.append(
             f"El resto ({network_total - shown_total}) está en otras direcciones "
-            f"(minado, cuentas del generador, etc.). No se pierde moneda."
+            f"no listadas aquí."
         )
     lines.append(
         "Nota: cada bloque minado emite recompensa; el total de la red crece con el tiempo."

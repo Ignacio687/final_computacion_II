@@ -3,6 +3,7 @@
 from abc import ABC, abstractmethod
 from typing import List
 
+from main.domain.models.active_account import ActiveAccount
 from main.domain.models.transaction import Transaction
 
 
@@ -23,12 +24,11 @@ class IWalletQuery(ABC):
 
     @abstractmethod
     def get_status(self) -> dict:
-        """Estado del nodo. Estructura exacta:
-        {
-          "node_id": str,
-          "height": int,
-          "difficulty": int,
-          "mempool_size": int,
-          "peers_connected": int
-        }"""
+        """Estado del nodo. Incluye node_id, height, difficulty, mempool_size,
+        peers_connected y total_supply."""
+        ...
+
+    @abstractmethod
+    def get_active_accounts(self, limit: int) -> List[ActiveAccount]:
+        """Cuentas ordenadas por última modificación de saldo en la cadena confirmada."""
         ...

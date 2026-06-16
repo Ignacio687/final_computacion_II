@@ -170,6 +170,36 @@ def test_get_balance_on_confirmed_transactions(blockchain_repo, transaction_repo
     assert transaction_repo.get_total_supply() == 2000 + 50
 
 
+def test_get_active_accounts_ordered_by_recent_activity(
+    blockchain_repo, transaction_repo
+):
+    genesis = _genesis_block()
+    blockchain_repo.append_block(genesis)
+
+    addr_a = "a" * 64
+    addr_b = "b" * 64
+    addr_c = "c" * 64
+    miner = "m" * 64
+
+    block1 = _mined_block(
+        1, genesis.hash, miner, 50, [_signed_tx("tx1", addr_a, addr_b, 100)], 1.0
+    )
+    blockchain_repo.append_block(block1)
+    block2 = _mined_block(
+        2, block1.hash, miner, 50, [_signed_tx("tx2", addr_b, addr_c, 25)], 2.0
+    )
+    blockchain_repo.append_block(block2)
+
+    active = transaction_repo.get_active_accounts(20)
+    assert len(active) == 4
+    top_two = {active[0].address, active[1].address}
+    assert top_two == {addr_b, addr_c}
+    assert active[0].last_block_id == 2
+    balances = {account.address: account.balance for account in active}
+    assert balances[addr_c] == 25
+    assert balances[addr_b] == 1075
+
+
 def test_exists_in_mempool_or_chain(blockchain_repo, transaction_repo):
     genesis = _genesis_block()
     blockchain_repo.append_block(genesis)

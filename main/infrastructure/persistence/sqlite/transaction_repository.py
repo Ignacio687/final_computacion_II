@@ -4,6 +4,7 @@ import sqlite3
 from typing import List
 
 from main.application.interfaces.transaction_repository import ITransactionRepository
+from main.domain.models.active_account import ActiveAccount
 from main.domain.models.transaction import Transaction
 from main.infrastructure.persistence.sqlite.blockchain_repository import (
     _connect,
@@ -132,3 +133,51 @@ class SQLiteTransactionRepository(ITransactionRepository):
                     (COINBASE_SENDER,),
                 ).fetchone()[0]
                 return int(genesis) + int(coinbase)
+
+    def get_active_accounts(self, limit: int) -> List[ActiveAccount]:
+        if limit < 1:
+            return []
+        with self._lock:
+            with _connect(self._db_path) as conn:
+                rows = conn.execute(
+                    """
+                    WITH touches AS (
+                        SELECT sender_id AS address, block_id, position
+                        FROM transactions
+                        UNION ALL
+                        SELECT receiver_id, block_id, position
+                        FROM transactions
+                    ),
+                    last_touch AS (
+                        SELECT address, block_id, position,
+                               ROW_NUMBER() OVER (
+                                   PARTITION BY address
+                                   ORDER BY block_id DESC, position DESC
+                               ) AS rn
+                        FROM touches
+                        WHERE address NOT IN (?, ?)
+                    )
+                    SELECT lt.address,
+                           (
+                             SELECT COALESCE(SUM(amount), 0)
+                             FROM transactions WHERE receiver_id = lt.address
+                           ) - (
+                             SELECT COALESCE(SUM(amount), 0)
+                             FROM transactions WHERE sender_id = lt.address
+                           ) AS balance,
+                           lt.block_id
+                    FROM last_touch lt
+                    WHERE lt.rn = 1
+                    ORDER BY lt.block_id DESC, lt.position DESC
+                    LIMIT ?
+                    """,
+                    (GENESIS_SENDER, COINBASE_SENDER, limit),
+                ).fetchall()
+                return [
+                    ActiveAccount(
+                        address=row[0],
+                        balance=int(row[1]),
+                        last_block_id=int(row[2]),
+                    )
+                    for row in rows
+                ]
