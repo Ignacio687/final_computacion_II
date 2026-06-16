@@ -33,7 +33,47 @@ Este proyecto es una aplicación que pone en práctica los contenidos de la mate
 
 ## Uso básico de la aplicación
 
-*(Por completar cuando la aplicación esté desarrollada: comandos principales, ejemplos de uso, opciones por línea de comandos.)*
+### Uso rápido con hashcoin
+
+CLI amigable para desarrollo local (delega en `run.py` sin duplicar bootstrap):
+
+```bash
+# Nodo con defaults (puertos 8001/9081, datos en ./data/node1/)
+python hashcoin.py node start
+
+# O con el script ejecutable en la raíz del repo:
+chmod +x hashcoin    # una vez
+./hashcoin node start
+
+# Segundo nodo enlazado al primero
+python hashcoin.py node start --node-id node2 --tcp-port 8002 --http-port 9082 \
+  --peers 127.0.0.1:8001
+
+# Billetera interactiva
+python hashcoin.py wallet
+
+# Generador de transacciones de prueba
+python hashcoin.py wallet --generator --generator-users 5
+
+# Ejemplos de red local y ayuda detallada
+python hashcoin.py network
+python hashcoin.py node help
+python hashcoin.py --help
+```
+
+Parámetros expuestos en `node start` (requisitos cátedra): `--difficulty`,
+`--pow-workers`, `--min-tx-per-block`, `--block-interval-seconds`, `--mining-reward`,
+`--log-level` (reservado). Secretos compartidos vía `HASHCOIN_GENESIS_SEED` y
+`HASHCOIN_SHARED_KEY` (defaults de laboratorio en `.env.example`).
+
+Para flags completos y despliegue Docker, ver [INSTALL.md](INSTALL.md).
+
+### Uso directo con run.py
+
+```bash
+python run.py node --node-id node1 --tcp-port 8001 --http-port 9081 ...
+python run.py wallet --node-url http://127.0.0.1:9081 --keys-dir ./wallet-keys
+```
 
 ---
 
