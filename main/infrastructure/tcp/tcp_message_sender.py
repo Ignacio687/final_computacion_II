@@ -11,9 +11,12 @@ from main.application.interfaces.signer import ISigner
 from main.domain.models.message import Message, MessageType
 from main.domain.models.node_info import NodeInfo
 from main.domain.models.payloads import HelloPayload
+from main.infrastructure.logging.node_logger import get_logger, message_detail
 from main.infrastructure.serialization.canonical import bytes_to_b64
 from main.infrastructure.serialization.message_codec import MessageCodec
 from main.infrastructure.tcp.frame_limits import MAX_FRAME_BYTES
+
+logger = get_logger("tcp")
 
 
 def _peer_key(host: str, port: int) -> str:
@@ -86,6 +89,12 @@ class TCPMessageSender(IMessageSender):
             handshake_done=True,
         )
         self._incoming[node_id] = conn
+        logger.info(
+            "tcp: conexión entrante registrada peer=%s:%s node_id=%s",
+            host,
+            port,
+            node_id,
+        )
 
     def unregister_incoming(
         self, node_id: str, writer: asyncio.StreamWriter
@@ -93,6 +102,7 @@ class TCPMessageSender(IMessageSender):
         conn = self._incoming.get(node_id)
         if conn is not None and conn.writer is writer:
             self._incoming.pop(node_id, None)
+            logger.info("tcp: conexión entrante cerrada node_id=%s", node_id)
 
     async def start(self) -> None:
         self._running = True
@@ -117,7 +127,17 @@ class TCPMessageSender(IMessageSender):
     async def send_to_peer(self, peer: NodeInfo, message: Message) -> None:
         conn = self._resolve_connection(peer)
         if conn is None or not conn.handshake_done:
+            logger.warning(
+                "tcp: no se pudo enviar %s a peer %s (sin conexión activa)",
+                message.type.value,
+                peer.node_id or f"{peer.host}:{peer.port}",
+            )
             return
+        logger.info(
+            "tcp: -> peer %s %s",
+            conn.node_id,
+            message_detail(message),
+        )
         await self._write_message(conn, message)
 
     async def broadcast(
@@ -139,6 +159,13 @@ class TCPMessageSender(IMessageSender):
                 continue
             seen.add(conn.node_id)
             targets.append(conn)
+        if targets:
+            logger.info(
+                "tcp: broadcast %s a %d peer(s)%s",
+                message_detail(message),
+                len(targets),
+                f" (excl. {exclude_node_id})" if exclude_node_id else "",
+            )
         await asyncio.gather(
             *(self._write_message(conn, message) for conn in targets),
             return_exceptions=True,
@@ -177,6 +204,11 @@ class TCPMessageSender(IMessageSender):
         while self._running:
             conn: Optional[_PeerConnection] = None
             try:
+                logger.info(
+                    "tcp: conectando saliente a %s:%s",
+                    peer.host,
+                    peer.port,
+                )
                 reader, writer = await asyncio.open_connection(peer.host, peer.port)
                 conn = _PeerConnection(
                     host=peer.host,
@@ -189,13 +221,25 @@ class TCPMessageSender(IMessageSender):
                 await self._read_loop(conn)
             except asyncio.CancelledError:
                 break
-            except Exception:
+            except Exception as exc:
+                logger.warning(
+                    "tcp: error en conexión saliente a %s:%s: %s",
+                    peer.host,
+                    peer.port,
+                    exc,
+                )
                 if conn is not None:
                     await self._close_connection(conn)
                     self._outgoing.pop(key, None)
                 if self._running:
                     await asyncio.sleep(self._reconnect_delay_seconds)
             else:
+                logger.info(
+                    "tcp: conexión saliente cerrada peer=%s:%s node_id=%s",
+                    peer.host,
+                    peer.port,
+                    conn.node_id if conn else "?",
+                )
                 if conn is not None:
                     await self._close_connection(conn)
                     self._outgoing.pop(key, None)
@@ -226,6 +270,12 @@ class TCPMessageSender(IMessageSender):
         conn.node_id = hello.node_id
         conn.public_key = b64_to_bytes(hello.public_key)
         conn.handshake_done = True
+        logger.info(
+            "tcp: handshake saliente OK peer=%s:%s node_id=%s",
+            conn.host,
+            conn.port,
+            conn.node_id,
+        )
 
     async def _read_loop(self, conn: _PeerConnection) -> None:
         while self._running and conn.handshake_done:
@@ -235,12 +285,23 @@ class TCPMessageSender(IMessageSender):
                 break
             if message.type == MessageType.HELLO:
                 continue
+            if conn.node_id is not None:
+                logger.info(
+                    "tcp: <- peer %s %s",
+                    conn.node_id,
+                    message_detail(message),
+                )
             if self._handler is not None and conn.node_id is not None:
                 peer = NodeInfo(host=conn.host, port=conn.port, node_id=conn.node_id)
                 try:
                     await self._handler(peer, message)
                 except Exception:
-                    pass
+                    logger.warning(
+                        "tcp: error al procesar %s de peer %s",
+                        message.type.value,
+                        conn.node_id,
+                        exc_info=True,
+                    )
 
     async def _write_message(
         self,

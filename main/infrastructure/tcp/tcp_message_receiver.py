@@ -8,10 +8,13 @@ from main.application.interfaces.message_receiver import IMessageReceiver, Messa
 from main.domain.models.message import Message, MessageType
 from main.domain.models.node_info import NodeInfo
 from main.domain.models.payloads import HelloPayload
+from main.infrastructure.logging.node_logger import get_logger, message_detail
 from main.infrastructure.serialization.canonical import b64_to_bytes, bytes_to_b64
 from main.infrastructure.serialization.message_codec import MessageCodec
 from main.infrastructure.tcp.frame_limits import MAX_FRAME_BYTES
 from main.infrastructure.tcp.tcp_message_sender import TCPMessageSender
+
+logger = get_logger("tcp")
 
 
 class TCPMessageReceiver(IMessageReceiver):
@@ -58,6 +61,7 @@ class TCPMessageReceiver(IMessageReceiver):
             self._bind_host,
             self._port,
         )
+        logger.info("tcp: escuchando en %s:%s", self._bind_host, self._port)
 
     async def stop(self) -> None:
         if self._server is not None:
@@ -71,6 +75,7 @@ class TCPMessageReceiver(IMessageReceiver):
         writer: asyncio.StreamWriter,
     ) -> None:
         peer_host, peer_port = writer.get_extra_info("peername")[:2]
+        logger.info("tcp: conexión entrante desde %s:%s", peer_host, peer_port)
         handshake_done = False
         peer_node_id: Optional[str] = None
         peer_public_key: Optional[bytes] = None
@@ -94,12 +99,29 @@ class TCPMessageReceiver(IMessageReceiver):
                 if message.type == MessageType.HELLO:
                     hello = message.payload
                     if not isinstance(hello, HelloPayload):
+                        logger.warning(
+                            "tcp: HELLO inválido desde %s:%s",
+                            peer_host,
+                            peer_port,
+                        )
                         break
                     if not self._is_peer_allowed(peer_host, peer_port, hello):
+                        logger.warning(
+                            "tcp: peer no autorizado %s:%s node_id=%s",
+                            peer_host,
+                            peer_port,
+                            hello.node_id,
+                        )
                         break
                     peer_node_id = hello.node_id
                     peer_public_key = b64_to_bytes(hello.public_key)
                     handshake_done = True
+                    logger.info(
+                        "tcp: handshake entrante OK peer=%s:%s node_id=%s",
+                        peer_host,
+                        peer_port,
+                        peer_node_id,
+                    )
                     await self._message_sender.register_incoming(
                         peer_node_id,
                         peer_host,
@@ -120,8 +142,20 @@ class TCPMessageReceiver(IMessageReceiver):
                     continue
 
                 if not handshake_done:
+                    logger.warning(
+                        "tcp: mensaje %s antes del handshake desde %s:%s",
+                        message.type.value,
+                        peer_host,
+                        peer_port,
+                    )
                     break
 
+                if peer_node_id is not None:
+                    logger.info(
+                        "tcp: <- peer %s %s",
+                        peer_node_id,
+                        message_detail(message),
+                    )
                 if self._handler is not None and peer_node_id is not None:
                     peer = NodeInfo(
                         host=peer_host,
@@ -131,9 +165,19 @@ class TCPMessageReceiver(IMessageReceiver):
                     try:
                         await self._handler(peer, message)
                     except Exception:
-                        pass
-        except (asyncio.IncompleteReadError, ConnectionResetError, ValueError):
-            pass
+                        logger.warning(
+                            "tcp: error al procesar %s de peer %s",
+                            message.type.value,
+                            peer_node_id,
+                            exc_info=True,
+                        )
+        except (asyncio.IncompleteReadError, ConnectionResetError, ValueError) as exc:
+            logger.debug(
+                "tcp: conexión entrante cerrada %s:%s: %s",
+                peer_host,
+                peer_port,
+                exc,
+            )
         finally:
             if peer_node_id is not None:
                 self._message_sender.unregister_incoming(peer_node_id, writer)
