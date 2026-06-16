@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextvars
 import logging
 import sys
 from typing import TYPE_CHECKING
@@ -9,15 +10,25 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from main.domain.models.message import Message
 
+_node_id: contextvars.ContextVar[str] = contextvars.ContextVar(
+    "hashcoin_node_id", default="?"
+)
+_logging_configured = False
+
 
 class _NodeFilter(logging.Filter):
-    def __init__(self, node_id: str) -> None:
-        super().__init__()
-        self._node_id = node_id
-
     def filter(self, record: logging.LogRecord) -> bool:
-        record.node_id = self._node_id
+        record.node_id = _node_id.get()
         return True
+
+
+def set_node_log_context(node_id: str) -> contextvars.Token[str]:
+    """Fija el node_id del hilo/tarea actual para el prefijo de logs."""
+    return _node_id.set(node_id)
+
+
+def reset_node_log_context(token: contextvars.Token[str]) -> None:
+    _node_id.reset(token)
 
 
 def trunc(value: str | bytes | None, n: int = 12) -> str:
@@ -41,6 +52,12 @@ def configure_logging(
     log_level: str = "INFO",
 ) -> None:
     """Configura logging global con prefijo [node_id] en stderr."""
+    global _logging_configured
+    set_node_log_context(node_id)
+
+    if _logging_configured:
+        return
+
     level_name = "DEBUG" if verbose else log_level.upper()
     level = getattr(logging, level_name, logging.INFO)
 
@@ -48,12 +65,13 @@ def configure_logging(
     handler.setFormatter(
         logging.Formatter("[%(node_id)s] %(levelname)s %(message)s")
     )
-    handler.addFilter(_NodeFilter(node_id))
+    handler.addFilter(_NodeFilter())
 
     root = logging.getLogger()
     root.handlers.clear()
     root.addHandler(handler)
     root.setLevel(level)
+    _logging_configured = True
 
 
 def get_logger(name: str) -> logging.Logger:
