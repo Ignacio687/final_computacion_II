@@ -1,0 +1,3 @@
+#!/usr/bin/env sh
+# Wrapper ejecutable: ./hashcoin node start
+exec python "$(dirname "$0")/hashcoin.py" "$@"

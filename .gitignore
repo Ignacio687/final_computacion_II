@@ -2,6 +2,7 @@
 .cursor/*
 
 #secrets / runtime
+data/
 .env
 docker/keys/**/priv.pem
 docker/keys/**/pub.pem
