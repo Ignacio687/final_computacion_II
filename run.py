@@ -62,12 +62,12 @@ def _build_wallet_parser(sub: argparse.ArgumentParser) -> None:
     sub.add_argument("--generator-interval-seconds", type=float, default=1.0)
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="HashCoin: nodo o billetera")
     subparsers = parser.add_subparsers(dest="command", required=True)
     _build_node_parser(subparsers.add_parser("node"))
     _build_wallet_parser(subparsers.add_parser("wallet"))
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     if args.command == "node":
         from main.bootstrap.genesis_seed import require_genesis_seed

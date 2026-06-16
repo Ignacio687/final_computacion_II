@@ -5,6 +5,7 @@ import base64
 from concurrent.futures import ProcessPoolExecutor
 
 from main.config.node_config import NodeConfig
+from main.infrastructure.logging.node_logger import configure_logging
 from main.controller.http_handlers import HTTPHandlers
 from main.controller.tcp_handler import TCPMessageHandler
 from main.infrastructure.crypto.signer import CryptographySigner
@@ -36,6 +37,11 @@ from main.service.wallet_query_service import WalletQueryService
 
 async def create_and_run_node(config: NodeConfig) -> None:
     """Crea todas las dependencias y ejecuta el nodo hasta detenerse."""
+    configure_logging(
+        config.node_id,
+        verbose=config.verbose,
+        log_level=config.log_level,
+    )
     signer = CryptographySigner(config.private_key_path, config.public_key_path)
     verifier = CryptographyVerifier()
     shared_key = base64.b64decode(config.shared_key)

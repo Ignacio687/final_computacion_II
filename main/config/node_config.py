@@ -40,3 +40,7 @@ class NodeConfig:
     genesis_seed: str                     # semilla que define el bloque génesis (idéntica en toda la red)
     genesis_prefund_accounts: int         # cantidad de cuentas pre-fondeadas derivadas de la semilla
     genesis_prefund_amount: int           # saldo inicial asignado a cada cuenta pre-fondeada
+
+    # Logging
+    log_level: str = "INFO"               # nivel de logging (DEBUG/INFO/WARNING)
+    verbose: bool = False                 # si True, fuerza nivel DEBUG
