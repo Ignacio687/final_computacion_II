@@ -24,7 +24,12 @@ import sys
 
 def _build_node_parser(sub: argparse.ArgumentParser) -> None:
     sub.add_argument("--node-id", type=str, required=True)
-    sub.add_argument("--bind-host", type=str, default="0.0.0.0")
+    sub.add_argument(
+        "--bind-host",
+        type=str,
+        default="auto",
+        help="host de escucha TCP/HTTP: auto (dual-stack), 0.0.0.0, ::, 127.0.0.1, ::1, …",
+    )
     sub.add_argument("--tcp-port", type=int, required=True)
     sub.add_argument("--http-port", type=int, required=True)
     sub.add_argument("--peers", type=str, default="", help="host:port,host:port")
@@ -87,21 +92,15 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "node":
         from main.bootstrap.genesis_seed import require_genesis_seed
+        from main.bootstrap.node_bootstrap import create_and_run_node
         from main.bootstrap.shared_key import require_shared_key_b64
         from main.config.node_config import NodeConfig
-        from main.domain.models.node_info import NodeInfo
-        from main.bootstrap.node_bootstrap import create_and_run_node
+        from main.infrastructure.net.endpoints import parse_peers_string
 
         shared_key = require_shared_key_b64(args.shared_key)
         genesis_seed = require_genesis_seed(args.genesis_seed)
 
-        peers = []
-        if args.peers:
-            for part in args.peers.split(","):
-                part = part.strip()
-                if ":" in part:
-                    host, port_str = part.rsplit(":", 1)
-                    peers.append(NodeInfo(host=host.strip(), port=int(port_str)))
+        peers = parse_peers_string(args.peers)
         config = NodeConfig(
             node_id=args.node_id,
             bind_host=args.bind_host,

@@ -12,7 +12,7 @@ class NodeConfig:
 
     # Identidad y red
     node_id: str                          # identificador único del nodo en la red
-    bind_host: str                        # host donde escuchan los servidores TCP y HTTP
+    bind_host: str                        # auto = dual-stack; 0.0.0.0 / :: / IP explícita
     tcp_port: int                         # puerto del protocolo entre nodos
     http_port: int                        # puerto del servidor HTTP (billetera/CLI)
     peers: List[NodeInfo]                 # peers iniciales (lista estática)

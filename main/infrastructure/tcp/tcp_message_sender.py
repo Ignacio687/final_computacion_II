@@ -12,6 +12,8 @@ from main.domain.models.message import Message, MessageType
 from main.domain.models.node_info import NodeInfo
 from main.domain.models.payloads import HelloPayload
 from main.infrastructure.logging.node_logger import get_logger, message_detail
+from main.infrastructure.net.dual_stack import open_tcp_connection
+from main.infrastructure.net.endpoints import normalize_host
 from main.infrastructure.serialization.canonical import bytes_to_b64
 from main.infrastructure.serialization.message_codec import MessageCodec
 from main.infrastructure.tcp.frame_limits import MAX_FRAME_BYTES
@@ -20,7 +22,7 @@ logger = get_logger("tcp")
 
 
 def _peer_key(host: str, port: int) -> str:
-    return f"{host}:{port}"
+    return f"{normalize_host(host)}:{port}"
 
 
 @dataclass
@@ -209,7 +211,7 @@ class TCPMessageSender(IMessageSender):
                     peer.host,
                     peer.port,
                 )
-                reader, writer = await asyncio.open_connection(peer.host, peer.port)
+                reader, writer = await open_tcp_connection(peer.host, peer.port)
                 conn = _PeerConnection(
                     host=peer.host,
                     port=peer.port,

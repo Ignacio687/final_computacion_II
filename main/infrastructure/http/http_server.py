@@ -12,6 +12,7 @@ from main.infrastructure.http.limits import (
     MAX_TRANSACTIONS_LIMIT,
 )
 from main.infrastructure.logging.node_logger import get_logger, trunc
+from main.infrastructure.net.dual_stack import listen_label, start_stream_server
 
 logger = get_logger("http")
 
@@ -26,12 +27,12 @@ class HTTPServer:
         self._server: Optional[asyncio.Server] = None
 
     async def start(self) -> None:
-        self._server = await asyncio.start_server(
+        self._server = await start_stream_server(
             self._handle_client,
             self._bind_host,
             self._port,
         )
-        logger.info("http: escuchando en %s:%s", self._bind_host, self._port)
+        logger.info("http: escuchando en %s", listen_label(self._bind_host, self._port))
 
     async def stop(self) -> None:
         if self._server is not None:

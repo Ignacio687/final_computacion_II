@@ -6,7 +6,7 @@ services:
     command:
       - node1
       - --bind-host
-      - "0.0.0.0"
+      - "auto"
       - --tcp-port
       - "8001"
       - --http-port
@@ -59,7 +59,7 @@ services:
     command:
       - node2
       - --bind-host
-      - "0.0.0.0"
+      - "auto"
       - --tcp-port
       - "8002"
       - --http-port
@@ -100,7 +100,7 @@ services:
     command:
       - node3
       - --bind-host
-      - "0.0.0.0"
+      - "auto"
       - --tcp-port
       - "8003"
       - --http-port
@@ -141,7 +141,7 @@ services:
     command:
       - node4
       - --bind-host
-      - "0.0.0.0"
+      - "auto"
       - --tcp-port
       - "8004"
       - --http-port
@@ -182,7 +182,7 @@ services:
     command:
       - node5
       - --bind-host
-      - "0.0.0.0"
+      - "auto"
       - --tcp-port
       - "8005"
       - --http-port
