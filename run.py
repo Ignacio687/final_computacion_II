@@ -57,6 +57,10 @@ def _build_wallet_parser(sub: argparse.ArgumentParser) -> None:
     sub.add_argument("--keys-dir", type=str, required=True)
     sub.add_argument("--genesis-seed", type=str, default=os.environ.get("HASHCOIN_GENESIS_SEED"),
                      help="semilla del génesis (o env HASHCOIN_GENESIS_SEED)")
+    sub.add_argument("--genesis-prefund-accounts", type=int, default=5,
+                     help="cuentas génesis derivadas para status/envío en modo generador")
+    sub.add_argument("--status-interval", type=float, default=5.0,
+                     help="intervalo por defecto (s) del comando status en modo live")
     sub.add_argument("--generator", action="store_true")
     sub.add_argument("--generator-users", type=int, default=0)
     sub.add_argument("--generator-interval-seconds", type=float, default=1.0)
@@ -126,7 +130,9 @@ def main(argv: list[str] | None = None) -> int:
             generator_mode=args.generator,
             generator_users=args.generator_users,
             generator_interval_seconds=args.generator_interval_seconds,
-            genesis_seed=args.genesis_seed,
+            genesis_seed=args.genesis_seed or "",
+            genesis_prefund_accounts=args.genesis_prefund_accounts,
+            status_interval_seconds=args.status_interval,
         )
         return run_wallet(config)
 

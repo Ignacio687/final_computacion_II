@@ -44,5 +44,11 @@ def run_wallet(config: WalletConfig) -> int:
         )
         return generator.run()
 
-    console = WalletConsole(client, key_store)
+    console = WalletConsole(
+        client,
+        key_store,
+        genesis_seed=config.genesis_seed,
+        genesis_prefund_accounts=config.genesis_prefund_accounts,
+        status_interval_seconds=config.status_interval_seconds,
+    )
     return console.run()

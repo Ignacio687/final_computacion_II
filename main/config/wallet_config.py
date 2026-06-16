@@ -14,3 +14,5 @@ class WalletConfig:
     generator_users: int                   # cantidad de usuarios aleatorios a crear en modo generador
     generator_interval_seconds: float      # intervalo entre transacciones generadas
     genesis_seed: str                      # semilla del génesis (deriva las cuentas pre-fondeadas a gastar)
+    genesis_prefund_accounts: int          # cuántas cuentas génesis mostrar en status (0 = ninguna)
+    status_interval_seconds: float         # intervalo por defecto del comando `status` en modo live
