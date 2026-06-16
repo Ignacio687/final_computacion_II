@@ -77,6 +77,51 @@ curl -s http://127.0.0.1:9081/status | python -m json.tool
 docker compose logs -f node1 node2
 ```
 
+### Billetera con Docker
+
+El compose levanta un servicio **`wallet`** en modo **generador** (envía txs automáticas a node1). No es interactivo; para verlo:
+
+```bash
+docker compose logs -f wallet
+```
+
+**Billetera interactiva** (comandos `status`, `send`, etc.) apuntando a los nodos del compose:
+
+**Opción A — desde tu máquina** (la más simple; nodos en Docker, billetera local):
+
+```bash
+# Misma semilla que en .env
+export HASHCOIN_GENESIS_SEED=hashcoin-docker-seed
+
+python hashcoin.py wallet \
+  --node-url http://127.0.0.1:9081 \
+  --fallback-node-url http://127.0.0.1:9083
+```
+
+Dentro: `status`, `balance <addr>`, `send <from> <to> <amount>`, `help`.
+
+**Opción B — dentro de un contenedor** (red interna Docker, claves en volumen `wallet-data`):
+
+```bash
+docker compose run --rm -it wallet \
+  python run.py wallet \
+  --node-url http://node1:9081 \
+  --fallback-node-url http://node3:9083 \
+  --keys-dir /data/keys \
+  --genesis-seed hashcoin-docker-seed
+```
+
+(`-it` es necesario para el prompt `wallet>`.)
+
+**Solo consultar saldos / estado del nodo** sin billetera:
+
+```bash
+curl -s http://127.0.0.1:9081/status | python -m json.tool
+curl -s "http://127.0.0.1:9081/balance?address=<dirección>"
+```
+
+Las cuentas con saldo inicial son las derivadas del génesis (`HASHCOIN_GENESIS_SEED`); `status` en la billetera las lista si usás la misma semilla.
+
 ---
 
 ## Qué mirar (logs del nodo)
