@@ -44,6 +44,18 @@ def _build_node_parser(sub: argparse.ArgumentParser) -> None:
                      help="semilla del génesis (o env HASHCOIN_GENESIS_SEED)")
     sub.add_argument("--genesis-prefund-accounts", type=int, default=5)
     sub.add_argument("--genesis-prefund-amount", type=int, default=1000)
+    sub.add_argument(
+        "--log-level",
+        type=str,
+        default="INFO",
+        choices=["DEBUG", "INFO", "WARNING", "ERROR"],
+        help="nivel de logs del nodo (stderr)",
+    )
+    sub.add_argument(
+        "--verbose",
+        action="store_true",
+        help="equivale a --log-level DEBUG",
+    )
 
 
 def _build_wallet_parser(sub: argparse.ArgumentParser) -> None:
@@ -110,6 +122,8 @@ def main(argv: list[str] | None = None) -> int:
             genesis_seed=genesis_seed,
             genesis_prefund_accounts=args.genesis_prefund_accounts,
             genesis_prefund_amount=args.genesis_prefund_amount,
+            log_level=args.log_level,
+            verbose=args.verbose,
         )
         asyncio.run(create_and_run_node(config))
         return 0

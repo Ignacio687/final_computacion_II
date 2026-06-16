@@ -40,7 +40,7 @@ Parámetros expuestos en ``node start`` (cátedra: PoW, núcleos, mempool):
   --mining-reward
   --db-path             SQLite del nodo (auto: ./data/<node-id>/node.db)
   --data-dir            directorio base si --db-path no se indica
-  --log-level           reservado (propagado cuando run.py lo soporte)
+  --log-level           nivel de logs del nodo (DEBUG/INFO/WARNING)
 
 Secretos compartidos (misma red):
   HASHCOIN_GENESIS_SEED   semilla del bloque génesis
@@ -188,6 +188,10 @@ def _node_start_argv(args: argparse.Namespace) -> list[str]:
         "--reconnect-delay-seconds",
         str(args.reconnect_delay_seconds),
     ]
+    if args.verbose:
+        argv.append("--verbose")
+    else:
+        argv.extend(["--log-level", args.log_level])
     return argv
 
 
@@ -328,7 +332,12 @@ def _add_node_start_parser(sub: argparse.ArgumentParser) -> None:
         type=str,
         default="INFO",
         choices=["DEBUG", "INFO", "WARNING", "ERROR"],
-        help="nivel de log (reservado; aún no propagado a run.py)",
+        help="nivel de log del nodo (DEBUG/INFO/WARNING)",
+    )
+    sub.add_argument(
+        "--verbose",
+        action="store_true",
+        help="logs en nivel DEBUG",
     )
 
 
