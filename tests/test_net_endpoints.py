@@ -6,8 +6,10 @@ from main.infrastructure.net.endpoints import (
     hosts_match,
     parse_host_port,
     parse_peers_string,
+    peer_matches_hello,
     resolve_bind_host,
 )
+from main.domain.models.payloads import HelloPayload
 
 
 def test_parse_host_port_ipv4():
@@ -49,3 +51,21 @@ def test_resolve_bind_host_auto():
 def test_parse_host_port_invalid():
     with pytest.raises(ValueError):
         parse_host_port("not-an-endpoint")
+
+
+def test_peer_matches_hello_by_node_id_in_config():
+    peer = NodeInfo(host="127.0.0.1", port=8002, node_id="node2")
+    hello = HelloPayload(node_id="node2", public_key="aGVsbG8=", listen_port=8002)
+    assert peer_matches_hello(peer, "10.0.0.5", 45678, hello)
+
+
+def test_peer_matches_hello_docker_hostname():
+    peer = NodeInfo(host="node3", port=8003)
+    hello = HelloPayload(node_id="node3", public_key="aGVsbG8=", listen_port=8003)
+    assert peer_matches_hello(peer, "::ffff:172.21.0.4", 57836, hello)
+
+
+def test_peer_matches_hello_rejects_unknown():
+    peer = NodeInfo(host="node3", port=8003)
+    hello = HelloPayload(node_id="intruder", public_key="aGVsbG8=", listen_port=8003)
+    assert not peer_matches_hello(peer, "::ffff:172.21.0.4", 57836, hello)

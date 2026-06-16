@@ -109,6 +109,48 @@ async def test_tcp_receiver_rejects_unlisted_hello(codec, signer):
 
 
 @pytest.mark.asyncio
+async def test_tcp_receiver_accepts_docker_style_peer_name(codec, signer):
+    port = free_port()
+    client_listen = free_port()
+    sender = TCPMessageSender(
+        peers=[],
+        signer=signer,
+        codec=codec,
+        node_id="node-a",
+        listen_port=port,
+        reconnect_delay_seconds=1.0,
+    )
+    allowed = [NodeInfo(host="client-node", port=client_listen)]
+    receiver = TCPMessageReceiver(
+        "127.0.0.1",
+        port,
+        codec,
+        "node-b",
+        port,
+        sender,
+        signer.get_public_key(),
+        allowed,
+    )
+    await receiver.start()
+    try:
+        reader, writer = await asyncio.open_connection("127.0.0.1", port)
+        hello = Message(
+            type=MessageType.HELLO,
+            payload=HelloPayload(
+                node_id="client-node",
+                public_key=bytes_to_b64(signer.get_public_key()),
+                listen_port=client_listen,
+            ),
+        )
+        await _send_framed_message(writer, codec, hello, "client-node")
+        response = await _read_framed_message(reader, codec, signer.get_public_key())
+        assert response.type == MessageType.HELLO
+        assert response.payload.node_id == "node-b"
+    finally:
+        await receiver.stop()
+
+
+@pytest.mark.asyncio
 async def test_tcp_receiver_accepts_listed_hello(codec, signer):
     port = free_port()
     client_listen = free_port()

@@ -10,7 +10,7 @@ from main.domain.models.node_info import NodeInfo
 from main.domain.models.payloads import HelloPayload
 from main.infrastructure.logging.node_logger import get_logger, message_detail
 from main.infrastructure.net.dual_stack import listen_label, start_stream_server
-from main.infrastructure.net.endpoints import hosts_match
+from main.infrastructure.net.endpoints import peer_matches_hello
 from main.infrastructure.serialization.canonical import b64_to_bytes, bytes_to_b64
 from main.infrastructure.serialization.message_codec import MessageCodec
 from main.infrastructure.tcp.frame_limits import MAX_FRAME_BYTES
@@ -47,15 +47,10 @@ class TCPMessageReceiver(IMessageReceiver):
     def _is_peer_allowed(
         self, remote_host: str, remote_port: int, hello: HelloPayload
     ) -> bool:
-        for peer in self._allowed_peers:
-            if peer.node_id is not None and peer.node_id == hello.node_id:
-                return True
-            if hosts_match(peer.host, remote_host) and peer.port in (
-                remote_port,
-                hello.listen_port,
-            ):
-                return True
-        return False
+        return any(
+            peer_matches_hello(peer, remote_host, remote_port, hello)
+            for peer in self._allowed_peers
+        )
 
     def set_handler(self, handler: MessageHandler) -> None:
         self._handler = handler

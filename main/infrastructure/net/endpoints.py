@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import ipaddress
+import socket
 
 from main.domain.models.node_info import NodeInfo
+from main.domain.models.payloads import HelloPayload
 
 
 def strip_host_brackets(host: str) -> str:
@@ -63,6 +65,44 @@ def normalize_host(host: str) -> str:
 
 def hosts_match(configured: str, observed: str) -> bool:
     return normalize_host(configured) == normalize_host(observed)
+
+
+def _resolved_ips(host: str) -> set[str]:
+    """IPs asociadas a un host (literal IP o resolución DNS)."""
+    host = strip_host_brackets(host)
+    try:
+        ipaddress.ip_address(host)
+        return {normalize_host(host)}
+    except ValueError:
+        pass
+    ips: set[str] = set()
+    try:
+        for info in socket.getaddrinfo(host, None, type=socket.SOCK_STREAM):
+            ips.add(normalize_host(info[4][0]))
+    except OSError:
+        return set()
+    return ips
+
+
+def peer_matches_hello(
+    peer: NodeInfo, remote_host: str, remote_port: int, hello: HelloPayload
+) -> bool:
+    """True si el HELLO corresponde a un peer configurado (allowlist)."""
+    if peer.node_id is not None and peer.node_id == hello.node_id:
+        return True
+    # Docker / DNS: peer "node2:8002" y HELLO node_id=node2 (IP remota distinta).
+    if peer.host == hello.node_id and peer.port == hello.listen_port:
+        return True
+    if hosts_match(peer.host, remote_host) and peer.port in (
+        remote_port,
+        hello.listen_port,
+    ):
+        return True
+    if peer.port == hello.listen_port and normalize_host(remote_host) in _resolved_ips(
+        peer.host
+    ):
+        return True
+    return False
 
 
 def format_host_port(host: str, port: int) -> str:
