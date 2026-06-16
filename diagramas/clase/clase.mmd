@@ -26,11 +26,6 @@ classDiagram
     +port: int
     +node_id: str
   }
-  class ActiveAccount {
-    +address: str
-    +balance: int
-    +last_block_id: int
-  }
   Block "1" o-- "*" Transaction : incluye
   Message --> NodeInfo
 
@@ -58,13 +53,6 @@ classDiagram
     <<interface>>
     +validate(tx)
   }
-  class IWalletQuery {
-    <<interface>>
-    +get_balance()
-    +get_transactions()
-    +get_status()
-    +get_active_accounts()
-  }
   class IProofOfWork {
     <<interface>>
   }
@@ -83,20 +71,12 @@ classDiagram
   }
   class ITransactionRepository {
     <<interface>>
-    +get_total_supply()
-    +get_active_accounts()
   }
 
   %% ===== Infraestructura (adaptadores) =====
   class TCPMessageSender
   class TCPMessageReceiver
   class MessageCodec
-  class DualStackNet {
-    <<module net>>
-    +start_stream_server()
-    +open_tcp_connection()
-    +peer_matches_hello()
-  }
   class DefaultBlockValidator
   class DefaultChainVerifier
   class DefaultTransactionValidator
@@ -121,10 +101,7 @@ classDiagram
   SQLiteBlockchainRepository ..|> IBlockchainRepository
   SQLiteTransactionRepository ..|> ITransactionRepository
   TCPMessageSender --> MessageCodec
-  TCPMessageSender --> DualStackNet
   TCPMessageReceiver --> MessageCodec
-  TCPMessageReceiver --> DualStackNet
-  HTTPServer --> DualStackNet
   ChainVerificationDispatcher --> IChainVerifier
 
   %% ===== Servicios =====
@@ -146,10 +123,7 @@ classDiagram
   PropagationService --> IMessageSender
   MiningService --> IProofOfWork
   MiningService --> IMessageSender
-  WalletQueryService ..|> IWalletQuery
   WalletQueryService --> IMessageSender
-  WalletQueryService --> IBlockchainRepository
-  WalletQueryService --> ITransactionRepository
   TransactionSubmitService --> ITransactionValidator
   TransactionSubmitService --> IMessageSender
 
@@ -168,14 +142,7 @@ classDiagram
   class WalletConsole
   class TransactionGenerator
   class KeyStore
-  class StatusDisplay {
-    <<status_display>>
-    +build_status_account_rows()
-    +format_status_output()
-  }
   WalletConsole --> WalletClient
   WalletConsole --> KeyStore
-  WalletConsole --> StatusDisplay
   TransactionGenerator --> WalletClient
   TransactionGenerator --> KeyStore
-  WalletClient ..> HTTPServer : HTTP GET/POST

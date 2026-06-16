@@ -1,23 +1,19 @@
 flowchart TB
-  subgraph despliegue["Despliegue (local o Docker Compose)"]
-    subgraph red["Red P2P — TCP dual-stack IPv4/IPv6"]
-      N1[Nodo 1<br/>TCP 8001 · HTTP 9081]
-      N2[Nodo 2<br/>TCP 8002 · HTTP 9082]
-      N3[Nodo 3<br/>TCP 8003 · HTTP 9083]
-      N4[Nodo 4<br/>TCP 8004 · HTTP 9084]
-      N5[Nodo 5<br/>TCP 8005 · HTTP 9085]
-      N1 <-->|HELLO + msgs cifrados AES-GCM<br/>firma Ed25519| N2
-      N1 <--> N3
-      N2 <--> N4
-      N3 <--> N4
-      N3 <--> N5
-      N4 <--> N5
-    end
-    subgraph cliente["Clientes HTTP"]
-      B[Billetera interactiva<br/>hashcoin / run.py wallet]
-      G[Generador automático<br/>servicio wallet en Compose]
-    end
+  subgraph red["Red local"]
+    N1[Nodo 1]
+    N2[Nodo 2]
+    N3[Nodo 3]
+    N4[Nodo 4]
+    N5[Nodo 5]
+    N1 <-->|TCP: payload cifrado clave precompartida + firma| N2
+    N1 <--> N3
+    N2 <--> N4
+    N3 <--> N4
+    N3 <--> N5
+    N4 <--> N5
   end
-  G -->|POST /tx| N1
-  B -->|GET /status /accounts /balance<br/>POST /tx| N1
-  B -.->|fallback| N3
+  subgraph cliente["Cliente"]
+    B[Billetera]
+  end
+  B <-->|HTTP REST| N1
+  B <-->|HTTP REST| N3

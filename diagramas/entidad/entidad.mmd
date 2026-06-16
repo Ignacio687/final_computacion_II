@@ -10,21 +10,16 @@ erDiagram
   TRANSACTION {
     char id PK
     int block_id FK
-    int position
     char sender_id
     char receiver_id
     int amount
     bytes signature
     bytes public_key
   }
-  MEMPOOL {
-    char id PK
-    int seq
-    char sender_id
-    char receiver_id
-    int amount
-    bytes signature
-    bytes public_key
+  NODE_INFO {
+    char node_id PK
+    char host
+    int port
   }
   WALLET_ACCOUNT {
     char id PK

@@ -6,10 +6,9 @@ sequenceDiagram
   B->>N1: POST /tx (transacción firmada)
   N1->>N1: Validar firma y reglas
   N1->>N1: Añadir a mempool, persistir
-  N1->>N2: NEW_TX (TCP, canal cifrado)
+  N1->>N2: NEW_TX (TCP)
   N1->>N3: NEW_TX (TCP)
   N2->>N2: Validar, mempool, persistir
   N3->>N3: Validar, mempool, persistir
-  N2->>N3: Repropagar NEW_TX (excepto origen N1)
-  N3->>N2: Repropagar NEW_TX (excepto origen N1)
-  Note over B,N1: status: GET /status y GET /accounts?limit=20<br/>para ver cuentas activas y total_supply
+  N2->>N3: Repropagar NEW_TX (excepto al origen N1)
+  N3->>N2: Repropagar NEW_TX (excepto al origen N1)
