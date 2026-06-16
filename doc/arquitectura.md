@@ -43,14 +43,16 @@ La billetera habla HTTP con N1 y N3.
 | Origen       | Destino   | Protocolo | Uso |
 |-------------|-----------|------------|-----|
 | Nodo ↔ Nodo | Peer      | TCP        | Sobres JSON con payload cifrado (clave precompartida) y firma del emisor: handshake (HELLO), propagación de transacciones y bloques, solicitud/envío de cadena y mempool. |
-| Billetera   | Nodo      | HTTP       | Consultas (balance, transacciones, estado) y envío de transacciones (POST). |
+| Billetera   | Nodo      | HTTP       | Consultas (`GET /balance`, `/transactions`, `/status`, `/accounts`) y envío (`POST /tx`). |
 | Nodo        | SQLite    | Archivo local | Persistencia de blockchain y mempool (cada bloque/tx aceptado). |
 
 Cada nodo abre:
-- **Un socket TCP** en un puerto (8001, 8002, …) para el protocolo entre nodos.
+- **Un socket TCP** en un puerto (8001, 8002, …) para el protocolo entre nodos. Escucha **dual-stack** por defecto (`--bind-host auto`: IPv4 e IPv6).
 - **Un servidor HTTP** en otro puerto (9081, 9082, …) para la billetera y otros clientes.
 
-La lista de peers se pasa por línea de comando (`--peers 127.0.0.1:8002,127.0.0.1:8003`). **Estrategia de conexión**: cada nodo mantiene una **conexión TCP persistente** con cada peer de su lista. Si una conexión se cae, el nodo espera un **delay fijo** (`--reconnect-delay-seconds`) y vuelve a conectar hasta restablecerla (sin keepalive PING/PONG).
+La lista de peers se pasa por línea de comando (`--peers node2:8002,[::1]:8003` o IPs). En Docker los peers usan nombres de servicio (`node2:8002`); la allowlist TCP valida por `node_id` del HELLO además de host/IP.
+
+**Estrategia de conexión**: cada nodo mantiene conexión TCP saliente hacia cada peer configurado y acepta entrantes tras handshake HELLO (allowlist). Si una conexión se cae, espera `--reconnect-delay-seconds` y reconecta.
 
 ---
 
@@ -87,7 +89,7 @@ Resumen de mecanismos IPC en el nodo:
 
 ## Despliegue (Docker Compose)
 
-- **Servicios**: 4–5 contenedores de nodo + 1 contenedor de billetera.
+- **Servicios**: 5 contenedores de nodo + 1 contenedor de billetera generadora.
 - **Nodos**: Misma imagen, distinta configuración por contenedor (puertos, `--peers`, `--difficulty`, número de workers / núcleos asignados). Se pueden limitar núcleos con `cpuset-cpus` o similar para simular nodos con distinta capacidad.
 - **Billetera**: Cliente que apunta a uno o más nodos por URL (puerto HTTP).
 - **Red**: Una red Docker común para que los nodos se vean por nombre de servicio o por IP asignada.
