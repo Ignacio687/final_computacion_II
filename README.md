@@ -26,6 +26,7 @@ Este proyecto es una aplicación que pone en práctica los contenidos de la mate
 | [**final/**](final/) | Detalles conceptuales e ideas de implementación (diagramas, etc.). |
 | [**diagramas/**](diagramas/) | Diagramas Mermaid: arquitectura, clase, entidad, flujo y secuencia. |
 | [**INSTALL.md**](INSTALL.md) | Cómo clonar, instalar y ejecutar (o desplegar) la aplicación. |
+| [**GUIA_USO.md**](GUIA_USO.md) | Guía corta: comandos, pruebas, logs, IPv4/IPv6. |
 | [**INFO.md**](INFO.md) | Decisiones de diseño y justificación (modelo de datos, concurrencia, almacenamiento, etc.). |
 | [**TODO.md**](TODO.md) | Mejoras y características previstas para futuras versiones. |
 
@@ -66,7 +67,7 @@ Parámetros expuestos en `node start` (requisitos cátedra): `--difficulty`,
 `--log-level` (reservado). Secretos compartidos vía `HASHCOIN_GENESIS_SEED` y
 `HASHCOIN_SHARED_KEY` (defaults de laboratorio en `.env.example`).
 
-Para flags completos y despliegue Docker, ver [INSTALL.md](INSTALL.md).
+Para flags completos y despliegue Docker, ver [INSTALL.md](INSTALL.md). Guía rápida de comandos y pruebas: [GUIA_USO.md](GUIA_USO.md).
 
 ### Uso directo con run.py
 
