@@ -50,6 +50,15 @@ def test_collect_status_accounts_deduplicates_genesis_in_keys_dir():
     assert rows[0].alias == "genesis-0"
 
 
+def test_collect_status_accounts_hides_zero_local_by_default():
+    rows = collect_status_accounts(
+        [_account("empty-local"), _account("funded-local")],
+        balance_lookup=lambda address: 99 if address == "funded-local" else 0,
+    )
+    assert len(rows) == 1
+    assert rows[0].address == "funded-local"
+
+
 def test_format_status_output_includes_node_and_accounts():
     status = {
         "node_id": "node-a",
@@ -57,6 +66,7 @@ def test_format_status_output_includes_node_and_accounts():
         "difficulty": 2,
         "mempool_size": 1,
         "peers_connected": 2,
+        "total_supply": 5000,
     }
     accounts = collect_status_accounts(
         [_account("abcd1234efgh5678ijkl9012mnop3456")],
@@ -68,12 +78,13 @@ def test_format_status_output_includes_node_and_accounts():
     assert "mempool_size=1 peers_connected=2" in output
     assert "abcd1234...mnop3456" in output
     assert "balance=50" in output
+    assert "total_supply (red)=5000" in output
     assert "Actualizando cada 5s" in output
 
 
 def test_format_status_output_empty_accounts():
-    output = format_status_output({}, [], live=False)
-    assert "(sin cuentas)" in output
+    output = format_status_output({"total_supply": 5000}, [], live=False)
+    assert "sin cuentas con saldo" in output
 
 
 def test_parse_status_args_defaults_to_live():

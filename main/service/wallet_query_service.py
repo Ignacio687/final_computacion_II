@@ -43,4 +43,5 @@ class WalletQueryService(IWalletQuery):
             "difficulty": self._difficulty,
             "mempool_size": len(self._transaction_repository.get_mempool()),
             "peers_connected": self._message_sender.connected_count(),
+            "total_supply": self._transaction_repository.get_total_supply(),
         }

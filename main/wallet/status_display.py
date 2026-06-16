@@ -25,6 +25,8 @@ def collect_status_accounts(
     local_accounts: Iterable[object],
     genesis_accounts: Iterable[object] | None = None,
     balance_lookup: BalanceLookup | None = None,
+    *,
+    hide_zero_local: bool = True,
 ) -> list[StatusAccountRow]:
     """Combina cuentas de keys_dir y génesis (sin duplicar por dirección)."""
     rows: list[StatusAccountRow] = []
@@ -49,8 +51,10 @@ def collect_status_accounts(
         address = account.id
         if address in seen:
             continue
-        seen.add(address)
         balance = balance_lookup(address) if balance_lookup else 0
+        if hide_zero_local and balance <= 0:
+            continue
+        seen.add(address)
         rows.append(
             StatusAccountRow(
                 alias=address[:8],
@@ -69,6 +73,11 @@ def format_status_output(
     live: bool = False,
     interval_seconds: float | None = None,
 ) -> str:
+    shown_total = sum(row.balance for row in accounts)
+    genesis_total = sum(
+        row.balance for row in accounts if row.alias.startswith("genesis-")
+    )
+    network_total = status.get("total_supply")
     lines = [
         "=== HashCoin wallet status ===",
         (
@@ -78,11 +87,17 @@ def format_status_output(
             f"mempool_size={status.get('mempool_size')} "
             f"peers_connected={status.get('peers_connected')}"
         ),
-        "",
-        "Cuentas:",
     ]
+    if network_total is not None:
+        lines.append(f"total_supply (red)={network_total}")
+    lines.extend(
+        [
+            "",
+            "Cuentas:",
+        ]
+    )
     if not accounts:
-        lines.append("  (sin cuentas)")
+        lines.append("  (sin cuentas con saldo en esta vista)")
     else:
         alias_width = max(len(row.alias) for row in accounts)
         for row in accounts:
@@ -91,6 +106,19 @@ def format_status_output(
                 f"{truncate_address(row.address):<22}  "
                 f"balance={row.balance}"
             )
+    lines.append("")
+    lines.append(
+        f"Suma mostrada: {shown_total}  "
+        f"(génesis: {genesis_total})"
+    )
+    if network_total is not None and shown_total < network_total:
+        lines.append(
+            f"El resto ({network_total - shown_total}) está en otras direcciones "
+            f"(minado, cuentas del generador, etc.). No se pierde moneda."
+        )
+    lines.append(
+        "Nota: cada bloque minado emite recompensa; el total de la red crece con el tiempo."
+    )
     if live and interval_seconds is not None:
         lines.append("")
         lines.append(

@@ -122,6 +122,12 @@ curl -s "http://127.0.0.1:9081/balance?address=<dirección>"
 
 Las cuentas con saldo inicial son las derivadas del génesis (`HASHCOIN_GENESIS_SEED`); `status` en la billetera las lista si usás la misma semilla.
 
+**¿Por qué las cuentas génesis quedan en cero?** La moneda no desaparece:
+
+- El **generador** del compose mueve fondos entre cuentas génesis, crea cuentas nuevas (~30 % de las txs) y paga **recompensas de minado** (50 por bloque) a direcciones de cada nodo.
+- `status` muestra `total_supply (red)` = suma real en la blockchain (génesis + minado). Las 5 cuentas génesis suelen vaciarse; el saldo está en direcciones de minado y otras cuentas.
+- Verificación: `curl -s http://127.0.0.1:9081/status` incluye `total_supply` (debe crecer con la altura de la cadena).
+
 ---
 
 ## Qué mirar (logs del nodo)

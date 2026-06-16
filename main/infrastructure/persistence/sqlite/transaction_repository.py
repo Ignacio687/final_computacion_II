@@ -11,6 +11,10 @@ from main.infrastructure.persistence.sqlite.blockchain_repository import (
     ensure_schema,
 )
 from main.infrastructure.persistence.sqlite.db_lock import get_db_lock
+from main.infrastructure.validation.transaction_validator import (
+    COINBASE_SENDER,
+    GENESIS_SENDER,
+)
 from main.repository.dto.mappers import transaction_to_dto
 
 
@@ -115,3 +119,16 @@ class SQLiteTransactionRepository(ITransactionRepository):
                     (limit,),
                 ).fetchall()
                 return [_transaction_from_row(row) for row in rows]
+
+    def get_total_supply(self) -> int:
+        with self._lock:
+            with _connect(self._db_path) as conn:
+                genesis = conn.execute(
+                    "SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE sender_id = ?",
+                    (GENESIS_SENDER,),
+                ).fetchone()[0]
+                coinbase = conn.execute(
+                    "SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE sender_id = ?",
+                    (COINBASE_SENDER,),
+                ).fetchone()[0]
+                return int(genesis) + int(coinbase)

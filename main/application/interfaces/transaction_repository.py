@@ -57,3 +57,8 @@ class ITransactionRepository(ABC):
         """Últimas `limit` transacciones de la cadena confirmada (cualquier dirección),
         en orden cronológico descendente."""
         ...
+
+    @abstractmethod
+    def get_total_supply(self) -> int:
+        """Moneda en circulación confirmada (emisión génesis + coinbase, sin doble conteo)."""
+        ...

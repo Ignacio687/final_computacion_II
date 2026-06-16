@@ -167,6 +167,7 @@ def test_get_balance_on_confirmed_transactions(blockchain_repo, transaction_repo
     assert transaction_repo.get_balance(addr_a) == 700
     assert transaction_repo.get_balance(addr_b) == 1300
     assert transaction_repo.get_balance(miner) == 50
+    assert transaction_repo.get_total_supply() == 2000 + 50
 
 
 def test_exists_in_mempool_or_chain(blockchain_repo, transaction_repo):

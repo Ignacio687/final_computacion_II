@@ -211,6 +211,7 @@ async def test_get_status_success(http_server):
     assert body["difficulty"] == 1
     assert body["mempool_size"] == 0
     assert body["peers_connected"] == 0
+    assert body["total_supply"] == GENESIS_PREFUND_ACCOUNTS * GENESIS_PREFUND_AMOUNT
 
 
 @pytest.mark.asyncio
