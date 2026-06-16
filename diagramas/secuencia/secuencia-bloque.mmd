@@ -1,0 +1,19 @@
+sequenceDiagram
+  participant N1 as Nodo 1
+  participant Pool as ProcessPool
+  participant N2 as Nodo 2
+  participant N3 as Nodo 3
+  N1->>N1: Armar bloque candidato
+  N1->>Pool: run_in_executor(minar)
+  Pool->>Pool: PoW (nonce)
+  Pool-->>N1: nonce, hash
+  N1->>N1: Añadir a cadena, persistir
+  N1->>N2: NEW_BLOCK (TCP)
+  N1->>N3: NEW_BLOCK (TCP)
+  N2->>N2: Validar bloque (encadena con el tope local)
+  N2->>N2: Añadir a cadena, actualizar mempool, persistir
+  N3->>N3: Validar bloque (encadena con el tope local)
+  N3->>N3: Añadir a cadena, actualizar mempool, persistir
+  N2->>N3: Repropagar NEW_BLOCK (excepto al origen N1)
+  N3->>N2: Repropagar NEW_BLOCK (excepto al origen N1)
+  Note over N2,N3: Si el last_hash no encadena pero la altura es mayor,<br/>el peer pide GET_CHAIN y reemplaza por CHAIN_RESPONSE verificada

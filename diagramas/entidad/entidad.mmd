@@ -1,0 +1,29 @@
+erDiagram
+  BLOCK {
+    int id PK
+    char last_hash
+    char hash
+    datetime timestamp
+    int target
+    int nonce
+  }
+  TRANSACTION {
+    char id PK
+    int block_id FK
+    char sender_id
+    char receiver_id
+    int amount
+    bytes signature
+    bytes public_key
+  }
+  NODE_INFO {
+    char node_id PK
+    char host
+    int port
+  }
+  WALLET_ACCOUNT {
+    char id PK
+    bytes public_key
+    bytes private_key
+  }
+  BLOCK ||--o{ TRANSACTION : contiene

@@ -1,0 +1,253 @@
+# Copiar .env.example a .env antes del primer arranque (valores solo de laboratorio).
+services:
+  node1:
+    build: .
+    entrypoint: ["/app/docker/entrypoint_node.sh"]
+    command:
+      - node1
+      - --bind-host
+      - "auto"
+      - --tcp-port
+      - "8001"
+      - --http-port
+      - "9081"
+      - --peers
+      - "node2:8002,node3:8003"
+      - --db-path
+      - /data/node1.db
+      - --difficulty
+      - "2"
+      - --pow-workers
+      - "2"
+      - --min-tx-per-block
+      - "3"
+      - --block-interval-seconds
+      - "8"
+      - --mining-reward
+      - "50"
+      - --reconnect-delay-seconds
+      - "3"
+      - --genesis-prefund-accounts
+      - "5"
+      - --genesis-prefund-amount
+      - "1000"
+    environment:
+      HASHCOIN_GENESIS_SEED: ${HASHCOIN_GENESIS_SEED}
+      HASHCOIN_SHARED_KEY: ${HASHCOIN_SHARED_KEY}
+    volumes:
+      - node1-data:/data
+    ports:
+      - "9081:9081"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:9081/status')",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 6
+      start_period: 15s
+    cpus: "0.50"
+    mem_limit: 256m
+
+  node2:
+    build: .
+    entrypoint: ["/app/docker/entrypoint_node.sh"]
+    command:
+      - node2
+      - --bind-host
+      - "auto"
+      - --tcp-port
+      - "8002"
+      - --http-port
+      - "9082"
+      - --peers
+      - "node1:8001,node4:8004"
+      - --db-path
+      - /data/node2.db
+      - --difficulty
+      - "2"
+      - --pow-workers
+      - "1"
+      - --min-tx-per-block
+      - "3"
+      - --block-interval-seconds
+      - "10"
+      - --mining-reward
+      - "50"
+      - --reconnect-delay-seconds
+      - "3"
+      - --genesis-prefund-accounts
+      - "5"
+      - --genesis-prefund-amount
+      - "1000"
+    environment:
+      HASHCOIN_GENESIS_SEED: ${HASHCOIN_GENESIS_SEED}
+      HASHCOIN_SHARED_KEY: ${HASHCOIN_SHARED_KEY}
+    volumes:
+      - node2-data:/data
+    ports:
+      - "9082:9082"
+    cpus: "0.35"
+    mem_limit: 256m
+
+  node3:
+    build: .
+    entrypoint: ["/app/docker/entrypoint_node.sh"]
+    command:
+      - node3
+      - --bind-host
+      - "auto"
+      - --tcp-port
+      - "8003"
+      - --http-port
+      - "9083"
+      - --peers
+      - "node1:8001,node4:8004,node5:8005"
+      - --db-path
+      - /data/node3.db
+      - --difficulty
+      - "2"
+      - --pow-workers
+      - "2"
+      - --min-tx-per-block
+      - "3"
+      - --block-interval-seconds
+      - "12"
+      - --mining-reward
+      - "50"
+      - --reconnect-delay-seconds
+      - "3"
+      - --genesis-prefund-accounts
+      - "5"
+      - --genesis-prefund-amount
+      - "1000"
+    environment:
+      HASHCOIN_GENESIS_SEED: ${HASHCOIN_GENESIS_SEED}
+      HASHCOIN_SHARED_KEY: ${HASHCOIN_SHARED_KEY}
+    volumes:
+      - node3-data:/data
+    ports:
+      - "9083:9083"
+    cpus: "0.40"
+    mem_limit: 256m
+
+  node4:
+    build: .
+    entrypoint: ["/app/docker/entrypoint_node.sh"]
+    command:
+      - node4
+      - --bind-host
+      - "auto"
+      - --tcp-port
+      - "8004"
+      - --http-port
+      - "9084"
+      - --peers
+      - "node2:8002,node3:8003,node5:8005"
+      - --db-path
+      - /data/node4.db
+      - --difficulty
+      - "2"
+      - --pow-workers
+      - "1"
+      - --min-tx-per-block
+      - "3"
+      - --block-interval-seconds
+      - "9"
+      - --mining-reward
+      - "50"
+      - --reconnect-delay-seconds
+      - "3"
+      - --genesis-prefund-accounts
+      - "5"
+      - --genesis-prefund-amount
+      - "1000"
+    environment:
+      HASHCOIN_GENESIS_SEED: ${HASHCOIN_GENESIS_SEED}
+      HASHCOIN_SHARED_KEY: ${HASHCOIN_SHARED_KEY}
+    volumes:
+      - node4-data:/data
+    ports:
+      - "9084:9084"
+    cpus: "0.30"
+    mem_limit: 256m
+
+  node5:
+    build: .
+    entrypoint: ["/app/docker/entrypoint_node.sh"]
+    command:
+      - node5
+      - --bind-host
+      - "auto"
+      - --tcp-port
+      - "8005"
+      - --http-port
+      - "9085"
+      - --peers
+      - "node3:8003,node4:8004"
+      - --db-path
+      - /data/node5.db
+      - --difficulty
+      - "2"
+      - --pow-workers
+      - "2"
+      - --min-tx-per-block
+      - "3"
+      - --block-interval-seconds
+      - "11"
+      - --mining-reward
+      - "50"
+      - --reconnect-delay-seconds
+      - "3"
+      - --genesis-prefund-accounts
+      - "5"
+      - --genesis-prefund-amount
+      - "1000"
+    environment:
+      HASHCOIN_GENESIS_SEED: ${HASHCOIN_GENESIS_SEED}
+      HASHCOIN_SHARED_KEY: ${HASHCOIN_SHARED_KEY}
+    volumes:
+      - node5-data:/data
+    ports:
+      - "9085:9085"
+    cpus: "0.25"
+    mem_limit: 256m
+
+  wallet:
+    build: .
+    depends_on:
+      node1:
+        condition: service_healthy
+      node3:
+        condition: service_started
+    command:
+      - wallet
+      - --node-url
+      - http://node1:9081
+      - --fallback-node-url
+      - http://node3:9083
+      - --keys-dir
+      - /data/keys
+      - --generator
+      - --generator-users
+      - "5"
+      - --generator-interval-seconds
+      - "2.0"
+    environment:
+      HASHCOIN_GENESIS_SEED: ${HASHCOIN_GENESIS_SEED}
+    volumes:
+      - wallet-data:/data
+    cpus: "0.20"
+    mem_limit: 128m
+
+volumes:
+  node1-data:
+  node2-data:
+  node3-data:
+  node4-data:
+  node5-data:
+  wallet-data:

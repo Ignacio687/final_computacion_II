@@ -1,0 +1,8 @@
+# Dependencias de HashCoin.
+# Se mantiene al mínimo: todo lo demás usa la biblioteca estándar de Python
+# (asyncio para TCP/HTTP del nodo, http.server/urllib para la billetera,
+# sqlite3, json, hashlib, queue, threading, concurrent.futures, argparse).
+
+# Criptografía: firma/verificación (Ed25519), claves PEM/DER y cifrado AES-GCM
+# del payload con la clave precompartida.
+cryptography>=42.0.0
