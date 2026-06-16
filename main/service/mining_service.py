@@ -1,7 +1,6 @@
 """Servicio de minado: arma bloque candidato, ejecuta PoW en ProcessPoolExecutor."""
 
 import asyncio
-import logging
 import sqlite3
 from concurrent.futures import Executor
 from datetime import datetime, timezone
@@ -15,6 +14,7 @@ from main.domain.models.block import Block
 from main.domain.models.message import Message, MessageType
 from main.domain.models.payloads import NewBlockPayload
 from main.domain.models.transaction import Transaction
+from main.infrastructure.logging.node_logger import get_logger, trunc
 from main.infrastructure.serialization.canonical import coinbase_id
 from main.infrastructure.validation.block_validator import (
     DefaultBlockValidator,
@@ -22,7 +22,7 @@ from main.infrastructure.validation.block_validator import (
 )
 from main.repository.dto.mappers import block_to_dto
 
-logger = logging.getLogger(__name__)
+logger = get_logger("mining")
 
 
 class MiningService:
@@ -73,6 +73,12 @@ class MiningService:
         if last_block is None:
             return
 
+        logger.info(
+            "mining: iniciado block_id=%s mempool=%d txs",
+            last_block.id + 1,
+            len(mempool),
+        )
+
         tip_id = last_block.id
         tip_hash = last_block.hash
         block_id = tip_id + 1
@@ -103,19 +109,35 @@ class MiningService:
         async with self._chain_lock:
             tip = self._blockchain_repository.get_last_block()
             if tip is None or tip.id != tip_id or tip.hash != tip_hash:
+                logger.debug("mining: tip cambió durante PoW, descartando candidato")
                 return
             if candidate.id != tip.id + 1 or candidate.last_hash != tip.hash:
                 return
             if not self._is_candidate_valid(candidate, tip):
+                logger.warning(
+                    "mining: candidato inválido block_id=%s hash=%s",
+                    candidate.id,
+                    trunc(candidate.hash),
+                )
                 return
 
             if not self._blockchain_repository.append_block(candidate):
+                logger.warning(
+                    "mining: bloque duplicado al minar block_id=%s",
+                    candidate.id,
+                )
                 return
             inserted = True
             tx_ids = [tx.id for tx in candidate.transactions]
             self._transaction_repository.remove_from_mempool(tx_ids)
 
         if inserted:
+            logger.info(
+                "mining: completado block_id=%s hash=%s nonce=%s",
+                candidate.id,
+                trunc(candidate.hash),
+                candidate.nonce,
+            )
             await self._message_sender.broadcast(
                 Message(
                     type=MessageType.NEW_BLOCK,

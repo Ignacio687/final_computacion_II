@@ -11,6 +11,9 @@ from main.infrastructure.http.limits import (
     MAX_POST_BODY_BYTES,
     MAX_TRANSACTIONS_LIMIT,
 )
+from main.infrastructure.logging.node_logger import get_logger, trunc
+
+logger = get_logger("http")
 
 
 class HTTPServer:
@@ -28,6 +31,7 @@ class HTTPServer:
             self._bind_host,
             self._port,
         )
+        logger.info("http: escuchando en %s:%s", self._bind_host, self._port)
 
     async def stop(self) -> None:
         if self._server is not None:
@@ -60,6 +64,7 @@ class HTTPServer:
             writer.write(headers.encode("ascii") + response_body)
             await writer.drain()
         except Exception:
+            logger.warning("http: error al procesar request", exc_info=True)
             error_body = json.dumps({"error": "bad request"}).encode("utf-8")
             writer.write(
                 (
@@ -135,8 +140,11 @@ class HTTPServer:
         if method == "GET" and path == "/balance":
             address_list = query.get("address")
             if not address_list or not address_list[0]:
+                logger.info("http: GET /balance -> 400 (address required)")
                 return 400, {"error": "address required"}
-            return 200, await self._handlers.handle_get_balance(address_list[0])
+            result = await self._handlers.handle_get_balance(address_list[0])
+            logger.info("http: GET /balance address=%s -> 200", trunc(address_list[0]))
+            return 200, result
 
         if method == "GET" and path == "/transactions":
             address_list = query.get("address")
@@ -146,16 +154,40 @@ class HTTPServer:
                 try:
                     limit = int(query["limit"][0])
                 except ValueError:
+                    logger.info("http: GET /transactions -> 400 (invalid limit)")
                     return 400, {"error": "invalid limit"}
                 if limit < 1:
+                    logger.info("http: GET /transactions -> 400 (invalid limit)")
                     return 400, {"error": "invalid limit"}
                 limit = min(limit, MAX_TRANSACTIONS_LIMIT)
-            return 200, await self._handlers.handle_get_transactions(address, limit)
+            result = await self._handlers.handle_get_transactions(address, limit)
+            logger.info(
+                "http: GET /transactions address=%s limit=%d -> 200 (%d txs)",
+                trunc(address) if address else "*",
+                limit,
+                len(result),
+            )
+            return 200, result
 
         if method == "GET" and path == "/status":
-            return 200, await self._handlers.handle_get_status()
+            result = await self._handlers.handle_get_status()
+            logger.info(
+                "http: GET /status -> 200 height=%s peers=%s",
+                result.get("height"),
+                result.get("peers_connected"),
+            )
+            return 200, result
 
         if method == "POST" and path == "/tx":
-            return await self._handlers.handle_post_tx(body)
+            status_code, result = await self._handlers.handle_post_tx(body)
+            tx_id = result.get("tx_id")
+            logger.info(
+                "http: POST /tx -> %d accepted=%s tx_id=%s",
+                status_code,
+                result.get("accepted"),
+                trunc(tx_id) if tx_id else "?",
+            )
+            return status_code, result
 
+        logger.info("http: %s %s -> 404", method, path)
         return 404, {"error": "not found"}
