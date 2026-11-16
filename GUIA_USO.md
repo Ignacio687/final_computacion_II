@@ -24,7 +24,7 @@ export HASHCOIN_SHARED_KEY="AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE="
 ## Forma rápida: CLI `hashcoin`
 
 ```bash
-# Nodo 1 (logs en stderr, dual-stack por defecto)
+# Nodo 1 (logs en stderr; --bind-host auto = sockets IPv4+IPv6 nativos)
 python hashcoin.py node start --verbose
 
 # Nodo 2 (otra terminal)
@@ -54,6 +54,16 @@ python hashcoin.py network          # comandos de ejemplo para 2 nodos
 ```
 
 Parámetros útiles del nodo: `--difficulty`, `--pow-workers`, `--min-tx-per-block`, `--log-level`, `--bind-host auto`.
+
+### Demo local (5 nodos, defensa IPv4/IPv6)
+
+Para la mesa: **5 nodos locales** todos con `--bind-host auto`, peers mixtos `127.0.0.1` / `[::1]`, y chequeos `curl` por ambas familias:
+
+```bash
+./scripts/demo_local.sh
+```
+
+La defensa de IPv6 se hace en local; Docker Compose queda como demo multi-nodo en **IPv4** (contenedores). Detalle de red nativa abajo.
 
 ---
 
@@ -102,9 +112,11 @@ Dentro: `status`, `balance <addr>`, `send <from> <to> <amount>`, `help`.
 
 **Opción B — dentro de un contenedor** (red interna Docker, claves en volumen `wallet-data`):
 
+La imagen tiene `ENTRYPOINT ["python", "run.py"]`, así que `docker compose run` solo recibe los **args** del subcomando (mismo estilo que el `command:` del servicio `wallet` en compose):
+
 ```bash
 docker compose run --rm -it wallet \
-  python run.py wallet \
+  wallet \
   --node-url http://node1:9081 \
   --fallback-node-url http://node3:9083 \
   --keys-dir /data/keys \
@@ -155,7 +167,9 @@ Integración (2 nodos en proceso): `tests/test_integration.py`, `tests/test_chai
 
 ## Red: IPv4 / IPv6
 
-- **`--bind-host auto`** (default): escucha dual-stack (`::` + IPv4 en Linux).
+- **`--bind-host auto`** (default): escucha **nativa** con **dos sockets dedicados** por puerto (TCP y HTTP): `AF_INET` (IPv4) + `AF_INET6` con `IPV6_V6ONLY=1` (IPv6). No es un único socket dual-stack con IPv4 mapeado (`::ffff:`).
+- Si en `auto` falla abrir el socket IPv6, el nodo **sigue en IPv4-only** y deja un **warning** en logs.
+- Binds explícitos (`127.0.0.1`, `::1`, `0.0.0.0`, etc.) usan solo esa familia; un fallo de bind explícito aborta el arranque.
 - Peers en CLI: `host:puerto` o **`[ipv6]:puerto`** (ej. `[::1]:8002`).
 - Conexiones salientes resuelven hostname/IPv4/IPv6 automáticamente.
 
@@ -167,6 +181,8 @@ python hashcoin.py node start --bind-host 127.0.0.1   # solo loopback IPv4
 python hashcoin.py node start --bind-host ::1        # solo loopback IPv6
 python run.py node ... --peers "[::1]:8001,127.0.0.1:8002"
 ```
+
+Demo one-shot de 5 nodos locales: `./scripts/demo_local.sh` (arriba). Compose no habilita IPv6 entre contenedores.
 
 ---
 
