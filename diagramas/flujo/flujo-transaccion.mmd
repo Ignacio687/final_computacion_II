@@ -1,11 +1,13 @@
 flowchart TD
-  A[Crear transacción] --> B[Firmar con clave privada]
-  B --> C[Enviar a nodo por HTTP POST]
-  C --> D{Nodo valida?}
-  D -->|No| E[Rechazar]
+  A[Crear transacción] --> B[Firmar con clave privada Ed25519]
+  B --> C[Enviar a nodo por HTTP POST /tx]
+  C --> D{Nodo valida firma y reglas?}
+  D -->|No| E[Rechazar 400]
   D -->|Sí| F[Añadir a mempool]
-  F --> G[Persistir en SQLite]
-  G --> H[Propagar por TCP a peers]
-  H --> I[Peers reciben NEW_TX]
-  I --> J[Cada peer valida y añade a mempool si es nueva]
-  J --> K[Repropagar a sus peers excepto al origen]
+  F --> G[Persistir en SQLite mempool]
+  G --> H[Propagar por TCP NEW_TX a peers]
+  H --> I[Peer: conexión con HELLO previo]
+  I --> J{Peer en allowlist?}
+  J -->|No| K[Cerrar conexión]
+  J -->|Sí| L[Validar tx y añadir a mempool si es nueva]
+  L --> M[Repropagar a sus peers excepto al origen]
