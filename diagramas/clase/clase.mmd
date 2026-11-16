@@ -1,148 +1,44 @@
 classDiagram
-  %% ===== Dominio =====
   class Block {
     +id: int
-    +last_hash: str
     +hash: str
-    +timestamp: datetime
-    +target: int
-    +nonce: int
-    +transactions: list~Transaction~
+    +transactions: list
   }
   class Transaction {
     +id: str
-    +sender_id: str
-    +receiver_id: str
     +amount: int
     +signature: bytes
-    +public_key: bytes
   }
-  class Message {
-    +type: MessageType
-    +payload: MessagePayload
-  }
-  class NodeInfo {
-    +host: str
-    +port: int
-    +node_id: str
-  }
-  Block "1" o-- "*" Transaction : incluye
-  Message --> NodeInfo
+  Block "1" o-- "*" Transaction
 
-  %% ===== Interfaces (application) =====
-  class IMessageSender {
-    <<interface>>
-    +send_to_peer()
-    +broadcast(exclude_node_id)
-    +connected_count()
+  class DualStackNet {
+    <<dual_stack.py>>
+    +start_stream_server()
+    +open_tcp_connection()
+    +listen_label()
   }
-  class IMessageReceiver {
-    <<interface>>
-    +set_handler()
-    +start()
-  }
-  class IBlockValidator {
-    <<interface>>
-    +validate(block, previous_hash)
-  }
-  class IChainVerifier {
-    <<interface>>
-    +verify_chain(blocks)
-  }
-  class ITransactionValidator {
-    <<interface>>
-    +validate(tx)
-  }
-  class IProofOfWork {
-    <<interface>>
-  }
-  class IGenesisProvider {
-    <<interface>>
-    +get_genesis_block()
-  }
-  class ISigner {
-    <<interface>>
-  }
-  class IVerifier {
-    <<interface>>
-  }
-  class IBlockchainRepository {
-    <<interface>>
-  }
-  class ITransactionRepository {
-    <<interface>>
-  }
-
-  %% ===== Infraestructura (adaptadores) =====
   class TCPMessageSender
   class TCPMessageReceiver
-  class MessageCodec
-  class DefaultBlockValidator
-  class DefaultChainVerifier
-  class DefaultTransactionValidator
-  class ChainVerificationDispatcher
-  class SHA256ProofOfWork
-  class SeedGenesisProvider
-  class CryptographySigner
-  class CryptographyVerifier
-  class SQLiteBlockchainRepository
-  class SQLiteTransactionRepository
   class HTTPServer
-
-  TCPMessageSender ..|> IMessageSender
-  TCPMessageReceiver ..|> IMessageReceiver
-  DefaultBlockValidator ..|> IBlockValidator
-  DefaultChainVerifier ..|> IChainVerifier
-  DefaultTransactionValidator ..|> ITransactionValidator
-  SHA256ProofOfWork ..|> IProofOfWork
-  SeedGenesisProvider ..|> IGenesisProvider
-  CryptographySigner ..|> ISigner
-  CryptographyVerifier ..|> IVerifier
-  SQLiteBlockchainRepository ..|> IBlockchainRepository
-  SQLiteTransactionRepository ..|> ITransactionRepository
+  class MessageCodec
+  TCPMessageSender --> DualStackNet
+  TCPMessageReceiver --> DualStackNet
+  HTTPServer --> DualStackNet
   TCPMessageSender --> MessageCodec
   TCPMessageReceiver --> MessageCodec
-  ChainVerificationDispatcher --> IChainVerifier
 
-  %% ===== Servicios =====
   class NodeService
   class PropagationService
   class MiningService
-  class WalletQueryService
-  class TransactionSubmitService
-
-  NodeService --> IMessageSender
-  NodeService --> IMessageReceiver
+  NodeService --> TCPMessageSender
+  NodeService --> TCPMessageReceiver
   NodeService --> HTTPServer
   NodeService --> PropagationService
   NodeService --> MiningService
-  NodeService --> ChainVerificationDispatcher
-  PropagationService --> IBlockValidator
-  PropagationService --> ITransactionValidator
-  PropagationService --> ChainVerificationDispatcher
-  PropagationService --> IMessageSender
-  MiningService --> IProofOfWork
-  MiningService --> IMessageSender
-  WalletQueryService --> IMessageSender
-  TransactionSubmitService --> ITransactionValidator
-  TransactionSubmitService --> IMessageSender
 
-  %% ===== Controllers / Bootstrap =====
-  class HTTPHandlers
-  class TCPMessageHandler
-  class NodeBootstrap
-  HTTPServer --> HTTPHandlers
-  HTTPHandlers --> WalletQueryService
-  HTTPHandlers --> TransactionSubmitService
-  TCPMessageHandler --> PropagationService
-  NodeBootstrap ..> NodeService : construye e inyecta
-
-  %% ===== Billetera =====
   class WalletClient
   class WalletConsole
-  class TransactionGenerator
   class KeyStore
   WalletConsole --> WalletClient
   WalletConsole --> KeyStore
-  TransactionGenerator --> WalletClient
-  TransactionGenerator --> KeyStore
+  WalletClient ..> HTTPServer : HTTP

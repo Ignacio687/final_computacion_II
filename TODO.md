@@ -51,5 +51,6 @@ Lo siguiente ya está en el repositorio; se documenta aquí como referencia, no 
 - `docker-compose.yml` con 5 nodos (`cpus` distintas), billetera generadora, volúmenes por nodo y puertos HTTP `9081–9085` publicados al host.
 - Claves Ed25519 de nodos generadas en runtime (`docker/entrypoint_node.sh`), no versionadas.
 - Variables de entorno compartidas vía `.env` (plantilla en [`.env.example`](.env.example) en la raíz del repo).
+- Pedido del profesor (IPv4/IPv6 **nativo**): **cumplido**. Con `--bind-host auto` el nodo abre sockets dedicados `AF_INET` + `AF_INET6` (`IPV6_V6ONLY=1` en el listener IPv6) para TCP y HTTP. Demo local de 5 nodos: `./scripts/demo_local.sh` (ver [`GUIA_USO.md`](GUIA_USO.md)).
 
 Para levantar la red: `cp .env.example .env && docker compose up --build` (ver [`INSTALL.md`](INSTALL.md)).
