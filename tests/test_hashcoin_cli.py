@@ -107,3 +107,16 @@ def test_main_network_command(capsys):
     assert main(["network"]) == 0
     captured = capsys.readouterr()
     assert "node2" in captured.out
+
+
+def test_bind_host_help_describes_native_not_dual_stack():
+    result = subprocess.run(
+        [sys.executable, "hashcoin.py", "node", "start", "--help"],
+        capture_output=True,
+        text=True,
+        cwd=Path(__file__).resolve().parents[1],
+    )
+    assert result.returncode == 0
+    help_text = result.stdout.lower()
+    assert "dual-stack" not in help_text
+    assert "nativo" in help_text or "dedicad" in help_text
