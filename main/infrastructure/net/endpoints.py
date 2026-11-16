@@ -117,7 +117,7 @@ def format_host_port(host: str, port: int) -> str:
 
 
 def resolve_bind_host(bind_host: str) -> str | None:
-    """``None`` = dual-stack automático; string = bind explícito."""
+    """``None`` = bind nativo IPv4+IPv6 (sockets dedicados); string = bind explícito."""
     value = bind_host.strip().lower()
     if value in {"", "auto", "*", "all"}:
         return None

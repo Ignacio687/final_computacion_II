@@ -9,7 +9,11 @@ from main.domain.models.message import Message, MessageType
 from main.domain.models.node_info import NodeInfo
 from main.domain.models.payloads import HelloPayload
 from main.infrastructure.logging.node_logger import get_logger, message_detail
-from main.infrastructure.net.dual_stack import listen_label, start_stream_server
+from main.infrastructure.net.dual_stack import (
+    StreamServerBundle,
+    listen_label_from_sockets,
+    start_stream_server,
+)
 from main.infrastructure.net.endpoints import peer_matches_hello
 from main.infrastructure.serialization.canonical import b64_to_bytes, bytes_to_b64
 from main.infrastructure.serialization.message_codec import MessageCodec
@@ -42,7 +46,7 @@ class TCPMessageReceiver(IMessageReceiver):
         self._public_key_b64 = bytes_to_b64(public_key_der)
         self._allowed_peers = allowed_peers
         self._handler: MessageHandler | None = None
-        self._server: Optional[asyncio.Server] = None
+        self._server: StreamServerBundle | None = None
 
     def _is_peer_allowed(
         self, remote_host: str, remote_port: int, hello: HelloPayload
@@ -61,7 +65,8 @@ class TCPMessageReceiver(IMessageReceiver):
             self._bind_host,
             self._port,
         )
-        logger.info("tcp: escuchando en %s", listen_label(self._bind_host, self._port))
+        label = listen_label_from_sockets(self._server.sockets, self._port)
+        logger.info("tcp: escuchando en %s", label)
 
     async def stop(self) -> None:
         if self._server is not None:

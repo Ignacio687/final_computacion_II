@@ -235,7 +235,7 @@ def _add_node_start_parser(sub: argparse.ArgumentParser) -> None:
         "--bind-host",
         type=str,
         default="auto",
-        help="escucha: auto (dual-stack IPv4/IPv6), 0.0.0.0, ::, 127.0.0.1, ::1 (default: auto)",
+        help="escucha: auto (sockets IPv4+IPv6 nativos dedicados), 0.0.0.0, ::, 127.0.0.1, ::1 (default: auto)",
     )
     sub.add_argument(
         "--tcp-port",
