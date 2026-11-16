@@ -3,7 +3,6 @@
 import asyncio
 import json
 import urllib.parse
-from typing import Optional
 
 from main.controller.http_handlers import HTTPHandlers
 from main.infrastructure.http.limits import (
@@ -14,7 +13,11 @@ from main.infrastructure.http.limits import (
     STATUS_ACCOUNTS_DEFAULT,
 )
 from main.infrastructure.logging.node_logger import get_logger, trunc
-from main.infrastructure.net.dual_stack import listen_label, start_stream_server
+from main.infrastructure.net.dual_stack import (
+    StreamServerBundle,
+    listen_label_from_sockets,
+    start_stream_server,
+)
 
 logger = get_logger("http")
 
@@ -26,7 +29,7 @@ class HTTPServer:
         self._bind_host = bind_host
         self._port = port
         self._handlers = handlers
-        self._server: Optional[asyncio.Server] = None
+        self._server: StreamServerBundle | None = None
 
     async def start(self) -> None:
         self._server = await start_stream_server(
@@ -34,7 +37,8 @@ class HTTPServer:
             self._bind_host,
             self._port,
         )
-        logger.info("http: escuchando en %s", listen_label(self._bind_host, self._port))
+        label = listen_label_from_sockets(self._server.sockets, self._port)
+        logger.info("http: escuchando en %s", label)
 
     async def stop(self) -> None:
         if self._server is not None:

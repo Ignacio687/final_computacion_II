@@ -60,6 +60,8 @@ python hashcoin.py wallet --generator --generator-users 5
 python hashcoin.py network
 python hashcoin.py node help
 python hashcoin.py --help
+
+# Demo local de 5 nodos (auto + peers IPv4/IPv6): ./scripts/demo_local.sh
 ```
 
 Parámetros expuestos en `node start` (requisitos cátedra): `--difficulty`,

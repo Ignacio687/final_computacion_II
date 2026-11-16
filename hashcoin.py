@@ -70,24 +70,30 @@ o correr el generador de tráfico de prueba.
 """
 
 NETWORK_HELP = """\
-Red de ejemplo (dos nodos en local)
-===================================
+Red local de demo (5 nodos, IPv4+IPv6)
+=====================================
 
-Terminal 1 — nodo 1:
+One-shot recomendado (todos con --bind-host auto, peers mixtos 127.0.0.1 / [::1]):
+  ./scripts/demo_local.sh              # start + wait HTTP 9081–9085 (timeout 60s) + curls
+  ./scripts/demo_local.sh --reset      # limpia ./data/node{1..5} y luego start
+  ./scripts/demo_local.sh stop         # detiene los PIDs de ./data/demo-local/demo.pid
+
+Mapa de peers (misma aridad que docker-compose; mezcla de familia por arista):
+  node1  tcp=8001 http=9081 workers=2  peers=127.0.0.1:8002,[::1]:8003
+  node2  tcp=8002 http=9082 workers=1  peers=[::1]:8001,127.0.0.1:8004
+  node3  tcp=8003 http=9083 workers=2  peers=127.0.0.1:8001,[::1]:8004,127.0.0.1:8005
+  node4  tcp=8004 http=9084 workers=1  peers=[::1]:8002,127.0.0.1:8003,[::1]:8005
+  node5  tcp=8005 http=9085 workers=2  peers=[::1]:8003,127.0.0.1:8004
+
+Chequeos tras el wait:
+  curl -sS http://127.0.0.1:9081/status
+  curl -sS http://[::1]:9081/status
+
+Mini-ejemplo manual (2 nodos):
   python hashcoin.py node start --node-id node1 --tcp-port 8001 --http-port 9081
-
-Terminal 2 — nodo 2 con peer al nodo 1:
   python hashcoin.py node start --node-id node2 --tcp-port 8002 --http-port 9082 \\
     --peers 127.0.0.1:8001
-
-Terminal 3 — billetera contra el nodo 1:
   python hashcoin.py wallet --node-url http://127.0.0.1:9081
-
-Equivalente con run.py:
-  python run.py node --node-id node1 ...   # mismos flags que hashcoin traduce
-
-Verificar estado:
-  curl http://127.0.0.1:9081/status
 """
 
 
@@ -235,7 +241,7 @@ def _add_node_start_parser(sub: argparse.ArgumentParser) -> None:
         "--bind-host",
         type=str,
         default="auto",
-        help="escucha: auto (dual-stack IPv4/IPv6), 0.0.0.0, ::, 127.0.0.1, ::1 (default: auto)",
+        help="escucha: auto (sockets IPv4+IPv6 nativos dedicados), 0.0.0.0, ::, 127.0.0.1, ::1 (default: auto)",
     )
     sub.add_argument(
         "--tcp-port",

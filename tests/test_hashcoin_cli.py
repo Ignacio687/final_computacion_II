@@ -49,6 +49,11 @@ def test_hashcoin_network_prints_examples():
     assert result.returncode == 0
     assert "node1" in result.stdout
     assert "9081" in result.stdout
+    # Demo local one-shot + peers mixtos IPv4/IPv6 (Parte 02)
+    assert "demo_local.sh" in result.stdout
+    assert "[::1]" in result.stdout
+    assert "127.0.0.1:8002" in result.stdout
+    assert "9085" in result.stdout
 
 
 def test_node_start_argv_defaults():
@@ -107,3 +112,18 @@ def test_main_network_command(capsys):
     assert main(["network"]) == 0
     captured = capsys.readouterr()
     assert "node2" in captured.out
+    assert "demo_local.sh" in captured.out
+    assert "[::1]:8001" in captured.out
+
+
+def test_bind_host_help_describes_native_not_dual_stack():
+    result = subprocess.run(
+        [sys.executable, "hashcoin.py", "node", "start", "--help"],
+        capture_output=True,
+        text=True,
+        cwd=Path(__file__).resolve().parents[1],
+    )
+    assert result.returncode == 0
+    help_text = result.stdout.lower()
+    assert "dual-stack" not in help_text
+    assert "nativo" in help_text or "dedicad" in help_text
